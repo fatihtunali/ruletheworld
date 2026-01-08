@@ -260,6 +260,33 @@ export const api = {
         method: 'POST',
       }),
   },
+
+  // Görevler
+  gorevleriGetir: () => request<GorevIlerleme[]>('/gorevler/ilerleme'),
+
+  gorevOdulAl: (gorevId: string) =>
+    request<{ basarili: boolean; mesaj: string }>(`/gorevler/${gorevId}/odul-al`, {
+      method: 'POST',
+    }),
+
+  // Sezon
+  sezonAktifGetir: () => request<SezonBilgi>('/sezon/aktif'),
+
+  sezonSiralamaGetir: (limit?: number) =>
+    request<SiralamaOyuncu[]>(`/sezon/siralama?limit=${limit || 50}`),
+
+  sezonDurumGetir: () => request<OyuncuSezonDurum>('/sezon/ben'),
+
+  // Altın
+  altinBakiyeGetir: () => request<AltinCuzdan>('/altin/bakiye'),
+
+  altinIslemlerGetir: (limit?: number) =>
+    request<AltinIslem[]>(`/altin/islemler?limit=${limit || 20}`),
+
+  altinGunlukBonus: () =>
+    request<{ miktar: number; yeniBakiye: number }>('/altin/gunluk-bonus', {
+      method: 'POST',
+    }),
 };
 
 // Types
@@ -608,4 +635,80 @@ export interface TurnuvaDetay extends TurnuvaOzeti {
 export interface TurnuvaListesiResponse {
   turnuvalar: TurnuvaOzeti[];
   toplam: number;
+}
+
+// Görev Types
+export type GorevTipi = 'GUNLUK' | 'HAFTALIK' | 'SEZONLUK' | 'OZEL';
+
+export interface Gorev {
+  id: string;
+  kod: string;
+  tip: GorevTipi;
+  baslik: string;
+  aciklama?: string;
+  hedef: number;
+  altinOdulu: number;
+  xpOdulu: number;
+  rozetKodu?: string;
+  aktif: boolean;
+}
+
+export interface GorevIlerleme {
+  gorev: Gorev;
+  ilerleme: number;
+  tamamlandi: boolean;
+  odul_alindi: boolean;
+}
+
+// Sezon Types
+export interface SezonBilgi {
+  id: string;
+  isim: string;
+  aciklama?: string;
+  baslangic: string;
+  bitis: string;
+  kalanGun: number;
+  katilimciSayisi: number;
+}
+
+export interface OyuncuSezonDurum {
+  sezonAktif: boolean;
+  sezon?: {
+    id: string;
+    isim: string;
+    bitis: string;
+  };
+  sira: number;
+  puan: number;
+  seviye: number;
+  xp: number;
+  xpYuzde: number;
+  sonrakiSeviyeXP: number;
+  tier: string;
+}
+
+export interface SiralamaOyuncu {
+  sira: number;
+  oyuncu: {
+    id: string;
+    kullaniciAdi: string;
+  };
+  puan: number;
+  seviye: number;
+}
+
+// Altın Types
+export interface AltinCuzdan {
+  bakiye: number;
+  toplamKazanilan: number;
+  toplamHarcanan: number;
+  sonGunlukBonus?: string;
+}
+
+export interface AltinIslem {
+  id: string;
+  tip: string;
+  miktar: number;
+  aciklama: string;
+  olusturulma: string;
 }
