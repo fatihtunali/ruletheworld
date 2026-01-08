@@ -198,7 +198,7 @@ export class SezonService {
         baslangic,
         bitis,
         aktif: true,
-        oduller: VARSAYILAN_ODULLER,
+        oduller: VARSAYILAN_ODULLER as unknown as Record<string, unknown>,
       },
     });
   }
@@ -220,7 +220,7 @@ export class SezonService {
     });
 
     const toplam = katilimcilar.length;
-    const oduller = (sezon.oduller as SezonOdulleri) || VARSAYILAN_ODULLER;
+    const oduller = (sezon.oduller as unknown as SezonOdulleri) || VARSAYILAN_ODULLER;
 
     for (let i = 0; i < katilimcilar.length; i++) {
       const katilimci = katilimcilar[i];
