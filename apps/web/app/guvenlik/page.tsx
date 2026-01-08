@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, IkiFADurum, IkiFAKurulum } from '@/lib/api';
-import Navbar from '@/components/Navbar';
+import { api, IkiFADurum, IkiFAKurulum } from '../../lib/api';
+import Navbar from '../../components/Navbar';
 
 type Adim = 'durum' | 'kurulum' | 'dogrulama' | 'yedek-kodlar';
 

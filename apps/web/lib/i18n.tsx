@@ -3,8 +3,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 // Çeviri dosyalarını import et
-import trCommon from '@/locales/tr/common.json';
-import enCommon from '@/locales/en/common.json';
+import trCommon from '../locales/tr/common.json';
+import enCommon from '../locales/en/common.json';
 
 // Desteklenen diller
 export type Locale = 'tr' | 'en';

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, Basarim, BasarimOzeti, BasarimKategori, BasarimNadirlik } from '@/lib/api';
-import Navbar from '@/components/Navbar';
+import { api, Basarim, BasarimOzeti, BasarimKategori, BasarimNadirlik } from '../../lib/api';
+import Navbar from '../../components/Navbar';
 
 const KATEGORI_ISIMLER: Record<BasarimKategori, string> = {
   OYUN: 'Oyun',

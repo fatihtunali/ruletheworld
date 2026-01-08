@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { api, ReaksiyonOzeti } from '@/lib/api';
+import { api, ReaksiyonOzeti } from '../lib/api';
 
 // İzin verilen emojiler
 const EMOJILER = ['👍', '❤️', '😂', '😮', '😢', '😡', '🎉', '🔥', '👏', '💯'];
