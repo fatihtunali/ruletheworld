@@ -12,14 +12,14 @@
   },
   "dependencies": {
     "@ruletheworld/shared": "*",
+    "@tanstack/react-query": "^5.64.1",
+    "clsx": "^2.1.1",
     "next": "16.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "socket.io-client": "^4.8.1",
-    "zustand": "^5.0.3",
-    "@tanstack/react-query": "^5.64.1",
-    "clsx": "^2.1.1",
-    "tailwind-merge": "^2.6.0"
+    "tailwind-merge": "^2.6.0",
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@ruletheworld/typescript-config": "*",
@@ -27,9 +27,10 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
-    "postcss": "^8.5.1",
-    "tailwindcss": "^3.4.17",
     "eslint": "^9.18.0",
+    "postcss": "^8.5.1",
+    "sharp": "^0.34.5",
+    "tailwindcss": "^3.4.17",
     "typescript": "5.9.2"
   }
 }

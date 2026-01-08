@@ -15,6 +15,15 @@ export const metadata: Metadata = {
   },
   description:
     'İnsanlara kendilerini yönetebileceklerini öğreten çok oyunculu tarayıcı oyunu. Topluluğunuzu yönetin, kararlar alın, sonuçlarıyla yüzleşin.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'RuleTheWorld',
+  },
+  formatDetection: {
+    telephone: false,
+  },
   keywords: [
     'oyun',
     'demokrasi',
@@ -78,6 +87,9 @@ export default function RootLayout({
   return (
     <html lang="tr" className="dark" suppressHydrationWarning>
       <head>
+        <meta name="theme-color" content="#6366f1" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <script
           dangerouslySetInnerHTML={{
             __html: `

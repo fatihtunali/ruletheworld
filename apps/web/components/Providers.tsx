@@ -2,6 +2,7 @@
 
 import { useEffect, ReactNode } from 'react';
 import { ErrorBoundary } from './ErrorBoundary';
+import { PWARegister } from './PWARegister';
 import { errorTracker } from '../lib/errorTracking';
 import { analytics, usePageTracking } from '../lib/analytics';
 import { useAuthStore } from '../lib/store';
@@ -42,6 +43,7 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <ErrorBoundary>
       {children}
+      <PWARegister />
     </ErrorBoundary>
   );
 }
