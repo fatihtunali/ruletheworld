@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
 interface SezonOdulleri {
   bronz: { altinOdulu: number; puanOdulu: number; rozetKodu?: string };
@@ -198,7 +199,7 @@ export class SezonService {
         baslangic,
         bitis,
         aktif: true,
-        oduller: VARSAYILAN_ODULLER as unknown as Record<string, unknown>,
+        oduller: VARSAYILAN_ODULLER as Prisma.InputJsonValue,
       },
     });
   }
