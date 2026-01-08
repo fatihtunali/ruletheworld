@@ -199,7 +199,7 @@ export class SezonService {
         baslangic,
         bitis,
         aktif: true,
-        oduller: VARSAYILAN_ODULLER as Prisma.InputJsonValue,
+        oduller: VARSAYILAN_ODULLER as unknown as Prisma.InputJsonValue,
       },
     });
   }
