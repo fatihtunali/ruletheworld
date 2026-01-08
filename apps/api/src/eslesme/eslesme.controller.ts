@@ -9,7 +9,8 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { EslesmeService, EslesmeKuyrugaGirDto } from './eslesme.service';
+import { EslesmeService } from './eslesme.service';
+import { EslesmeKuyrugaGirDto } from './eslesme.dto';
 
 @ApiTags('Eslestirme')
 @Controller('eslestirme')

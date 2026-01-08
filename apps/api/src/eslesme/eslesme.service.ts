@@ -2,12 +2,7 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ToplulukService } from '../topluluk/topluluk.service';
 import { EslesmeDurumu, OyunModu } from '@prisma/client';
-
-export interface EslesmeKuyrugaGirDto {
-  oyunModu?: OyunModu;
-  minOyuncu?: number;
-  maxOyuncu?: number;
-}
+import { EslesmeKuyrugaGirDto } from './eslesme.dto';
 
 export interface EslesmeDurumuDto {
   id: string;
