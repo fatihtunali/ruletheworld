@@ -158,17 +158,56 @@ const initialState: OyunState = {
   hata: null,
 };
 
+// Track if listeners have been set up
+let listenersSetUp = false;
+
 export const useOyunStore = create<OyunState & OyunActions>((set, get) => ({
   ...initialState,
 
   baglan: (toplulukId: string) => {
-    set({ yukleniyor: true, toplulukId });
+    const currentState = get();
+
+    // If already connected to this lobby, don't reconnect
+    if (currentState.toplulukId === toplulukId && currentState.bagli) {
+      return;
+    }
+
+    set({ yukleniyor: true, toplulukId, hata: null });
     const socket = connectSocket();
+
+    // Remove all previous listeners to avoid duplicates
+    if (listenersSetUp) {
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('hata');
+      socket.off('topluluk-durumu');
+      socket.off('oyuncu-katildi');
+      socket.off('oyuncu-ayrildi');
+      socket.off('hazirlik-guncellendi');
+      socket.off('durum-degisti');
+      socket.off('geri-sayim-basladi');
+      socket.off('geri-sayim-guncellendi');
+      socket.off('geri-sayim-iptal');
+      socket.off('bot-eklendi');
+      socket.off('oyun-basladi');
+      socket.off('yeni-tur');
+      socket.off('tartisma-basladi');
+      socket.off('yeni-oneri');
+      socket.off('oylama-basladi');
+      socket.off('oy-guncellendi');
+      socket.off('tur-sonucu');
+      socket.off('oyun-bitti');
+      socket.off('yeni-mesaj');
+      socket.off('bildirim');
+    }
 
     // Event listeners
     socket.on('connect', () => {
+      const state = get();
       set({ bagli: true });
-      socket.emit('topluluga-katil', { toplulukId });
+      if (state.toplulukId) {
+        socket.emit('topluluga-katil', { toplulukId: state.toplulukId });
+      }
     });
 
     socket.on('disconnect', () => {
@@ -204,6 +243,8 @@ export const useOyunStore = create<OyunState & OyunActions>((set, get) => ({
         ),
       }));
     });
+
+    listenersSetUp = true;
 
     // New state machine events
     socket.on('durum-degisti', (data: { durum: ToplulukDurumu }) => {
@@ -334,6 +375,12 @@ export const useOyunStore = create<OyunState & OyunActions>((set, get) => ({
         window.dispatchEvent(new CustomEvent('yeni-bildirim', { detail: bildirim }));
       }
     });
+
+    // If socket is already connected, emit topluluga-katil immediately
+    if (socket.connected) {
+      set({ bagli: true });
+      socket.emit('topluluga-katil', { toplulukId });
+    }
   },
 
   kopat: () => {

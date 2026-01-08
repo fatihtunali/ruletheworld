@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '../../../lib/store';
@@ -15,6 +15,7 @@ export default function OyunOdasiSayfasi() {
   const params = useParams();
   const router = useRouter();
   const toplulukId = params.id as string;
+  const hasConnected = useRef(false);
 
   const { token, oyuncu } = useAuthStore();
   const { baglan, kopat, durum, asama, yukleniyor, hata, bagli } = useOyunStore();
@@ -25,12 +26,18 @@ export default function OyunOdasiSayfasi() {
       return;
     }
 
-    baglan(toplulukId);
+    // Only connect once per component mount
+    if (!hasConnected.current) {
+      hasConnected.current = true;
+      baglan(toplulukId);
+    }
 
     return () => {
+      hasConnected.current = false;
       kopat();
     };
-  }, [token, toplulukId, router, baglan, kopat]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, toplulukId]);
 
   if (!token || !oyuncu) {
     return null;
