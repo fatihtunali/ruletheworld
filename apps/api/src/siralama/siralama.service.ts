@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Cron, CronExpression } from '@nestjs/schedule';
 
 export interface SiralamaGirisi {
   sira: number;
@@ -240,8 +239,7 @@ export class SiralamaService {
     });
   }
 
-  // Haftalık puanları sıfırla (her Pazartesi 00:00)
-  @Cron(CronExpression.EVERY_WEEK)
+  // Haftalık puanları sıfırla (manuel çağrılabilir veya cron job ile)
   async haftalikPuanlariSifirla() {
     console.log('[Siralama] Haftalik puanlar sifirlaniyor...');
     await this.prisma.oyuncu.updateMany({

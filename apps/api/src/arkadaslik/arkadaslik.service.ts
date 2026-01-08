@@ -69,13 +69,13 @@ export class ArkadaslikService {
     });
 
     // Bildirim gönder
-    await this.bildirimService.bildirimOlustur({
-      oyuncuId: alan.id,
-      tip: 'SISTEM',
-      baslik: 'Yeni Arkadaşlık İsteği',
-      icerik: `${arkadaslik.gonderen.kullaniciAdi} size arkadaşlık isteği gönderdi`,
-      link: '/arkadaslar',
-    });
+    await this.bildirimService.bildirimOlustur(
+      alan.id,
+      'SISTEM',
+      'Yeni Arkadaşlık İsteği',
+      `${arkadaslik.gonderen.kullaniciAdi} size arkadaşlık isteği gönderdi`,
+      '/arkadaslar',
+    );
 
     return {
       basarili: true,
@@ -119,13 +119,13 @@ export class ArkadaslikService {
     });
 
     // Gönderene bildirim
-    await this.bildirimService.bildirimOlustur({
-      oyuncuId: arkadaslik.gonderenId,
-      tip: 'SISTEM',
-      baslik: 'Arkadaşlık İsteği Kabul Edildi',
-      icerik: `${arkadaslik.alan.kullaniciAdi} arkadaşlık isteğinizi kabul etti`,
-      link: '/arkadaslar',
-    });
+    await this.bildirimService.bildirimOlustur(
+      arkadaslik.gonderenId,
+      'SISTEM',
+      'Arkadaşlık İsteği Kabul Edildi',
+      `${arkadaslik.alan.kullaniciAdi} arkadaşlık isteğinizi kabul etti`,
+      '/arkadaslar',
+    );
 
     return {
       basarili: true,
