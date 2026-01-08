@@ -860,3 +860,291 @@ enum PremiumTip {
 //   - DIAMOND ile aynı avantajlar
 //   - Özel "Destekçi" rozeti
 //   - Founder badge
+
+// ============ GÖREV SİSTEMİ ============
+
+model Gorev {
+  id            String          @id @default(uuid())
+  kod           String          @unique  // GUNLUK_3_OYUN, HAFTALIK_10_OYUN vb.
+  tip           GorevTipi
+  baslik        String
+  aciklama      String
+
+  // Gereksinimler
+  hedefDeger    Int             // Kaç kez yapılmalı
+  hedefTip      String          // OYUN_OYNA, OYUN_KAZAN, PUAN_KAZAN vb.
+
+  // Ödüller
+  altinOdulu    Int             @default(0)
+  puanOdulu     Int             @default(0)
+  xpOdulu       Int             @default(0)
+  rozetOdulu    String?         // Rozet kodu
+
+  // Aktiflik
+  aktif         Boolean         @default(true)
+  tekrarlanabilir Boolean       @default(true)
+
+  // Süre (günlük/haftalık için)
+  yenilemeSaati Int?            // 0-23 arası saat
+
+  olusturuldu   DateTime        @default(now())
+
+  ilerlemeler   GorevIlerleme[]
+
+  @@map("gorevler")
+}
+
+model GorevIlerleme {
+  id            String          @id @default(uuid())
+  gorevId       String
+  oyuncuId      String
+
+  mevcutDeger   Int             @default(0)
+  tamamlandi    Boolean         @default(false)
+  tamamlandiAt  DateTime?
+  odulAlindi    Boolean         @default(false)
+
+  // Periyodik görevler için
+  periyotBaslangic DateTime     @default(now())
+
+  olusturuldu   DateTime        @default(now())
+  guncellendi   DateTime        @updatedAt
+
+  gorev         Gorev           @relation(fields: [gorevId], references: [id])
+
+  @@unique([gorevId, oyuncuId, periyotBaslangic])
+  @@index([oyuncuId])
+  @@map("gorev_ilerlemeleri")
+}
+
+enum GorevTipi {
+  GUNLUK
+  HAFTALIK
+  AYLIK
+  OZEL        // Tek seferlik özel görevler
+  SEZONLUK
+
+  @@map("gorev_tipi")
+}
+
+// ============ SANAL PARA SİSTEMİ ============
+
+model AltinCuzdani {
+  id            String          @id @default(uuid())
+  oyuncuId      String          @unique
+  bakiye        Int             @default(0)
+  toplamKazanilan Int           @default(0)
+  toplamHarcanan  Int           @default(0)
+
+  olusturuldu   DateTime        @default(now())
+  guncellendi   DateTime        @updatedAt
+
+  islemler      AltinIslem[]
+
+  @@map("altin_cuzdanlari")
+}
+
+model AltinIslem {
+  id            String          @id @default(uuid())
+  cuzdanId      String
+
+  miktar        Int             // Pozitif = kazanç, negatif = harcama
+  tip           AltinIslemTipi
+  aciklama      String?
+  referansId    String?         // İlgili görev, satın alma vb. ID
+
+  olusturuldu   DateTime        @default(now())
+
+  cuzdan        AltinCuzdani    @relation(fields: [cuzdanId], references: [id])
+
+  @@index([cuzdanId])
+  @@map("altin_islemleri")
+}
+
+enum AltinIslemTipi {
+  GOREV_ODULU
+  OYUN_ODULU
+  GUNLUK_BONUS
+  BASARIM_ODULU
+  SATIN_ALMA      // Gerçek para ile
+  HARCAMA         // Mağazadan alışveriş
+  HEDIYE_ALINDI
+  HEDIYE_GONDERILDI
+  ADMIN_EKLEME
+
+  @@map("altin_islem_tipi")
+}
+
+// ============ SEZON SİSTEMİ ============
+
+model Sezon {
+  id            String          @id @default(uuid())
+  isim          String
+  aciklama      String?
+
+  baslangic     DateTime
+  bitis         DateTime
+
+  // Ödüller (JSON formatında tier bazlı)
+  oduller       Json?           // { "bronz": {...}, "gumus": {...}, "altin": {...} }
+
+  aktif         Boolean         @default(false)
+
+  olusturuldu   DateTime        @default(now())
+
+  katilimcilar  SezonKatilimci[]
+
+  @@map("sezonlar")
+}
+
+model SezonKatilimci {
+  id            String          @id @default(uuid())
+  sezonId       String
+  oyuncuId      String
+
+  puan          Int             @default(0)
+  seviye        Int             @default(1)
+  xp            Int             @default(0)
+
+  // Sezon sonu sıralama
+  sonSira       Int?
+  sonTier       String?         // BRONZ, GUMUS, ALTIN, ELMAS
+  odulAlindi    Boolean         @default(false)
+
+  olusturuldu   DateTime        @default(now())
+  guncellendi   DateTime        @updatedAt
+
+  sezon         Sezon           @relation(fields: [sezonId], references: [id])
+
+  @@unique([sezonId, oyuncuId])
+  @@index([oyuncuId])
+  @@map("sezon_katilimcilari")
+}
+
+// ============ EMOJİ/REACTİON SİSTEMİ ============
+
+model MesajReaksiyon {
+  id            String          @id @default(uuid())
+  mesajId       String
+  oyuncuId      String
+  emoji         String          // 👍, ❤️, 😂, 😮, 😢, 😡
+
+  olusturuldu   DateTime        @default(now())
+
+  @@unique([mesajId, oyuncuId, emoji])
+  @@index([mesajId])
+  @@map("mesaj_reaksiyonlari")
+}
+
+// ============ AVATAR SİSTEMİ ============
+
+model AvatarOgesi {
+  id            String          @id @default(uuid())
+  tip           AvatarOgeTipi
+  kod           String          @unique
+  isim          String
+
+  // Görsel
+  gorselUrl     String
+  onizlemeUrl   String?
+
+  // Elde etme
+  varsayilan    Boolean         @default(false)
+  satilikMi     Boolean         @default(false)
+  fiyatAltin    Int?
+  fiyatGercek   Float?
+
+  // Özel elde etme
+  basarimKodu   String?         // Bu başarımla açılır
+  premiumTip    String?         // Bu premium ile açılır
+  sezonOdulu    Boolean         @default(false)
+
+  nadirlik      NadirlikSeviyesi @default(YAYGIN)
+
+  aktif         Boolean         @default(true)
+  olusturuldu   DateTime        @default(now())
+
+  sahipler      AvatarSahipligi[]
+
+  @@map("avatar_ogeleri")
+}
+
+model AvatarSahipligi {
+  id            String          @id @default(uuid())
+  oyuncuId      String
+  avatarOgeId   String
+
+  edinmeTarihi  DateTime        @default(now())
+  edinmeYontemi String          // SATIN_ALMA, BASARIM, PREMIUM, SEZON, HEDIYE
+
+  avatarOge     AvatarOgesi     @relation(fields: [avatarOgeId], references: [id])
+
+  @@unique([oyuncuId, avatarOgeId])
+  @@index([oyuncuId])
+  @@map("avatar_sahiplikleri")
+}
+
+model OyuncuAvatar {
+  id            String          @id @default(uuid())
+  oyuncuId      String          @unique
+
+  // Aktif avatar ögeleri
+  cerceve       String?         // Avatar çerçeve kodu
+  arkaplan      String?         // Profil arkaplan kodu
+  rozet         String?         // Gösterilen rozet kodu
+  baslik        String?         // Unvan
+  tema          String?         // Profil tema kodu
+
+  guncellendi   DateTime        @updatedAt
+
+  @@map("oyuncu_avatarlari")
+}
+
+enum AvatarOgeTipi {
+  CERCEVE       // Avatar çerçevesi
+  ARKAPLAN      // Profil arkaplanı
+  ROZET         // Gösterilebilir rozet
+  BASLIK        // Unvan ("Efsane", "Stratejist" vb.)
+  TEMA          // Profil teması
+  EMOJI_PAKETI  // Özel emoji paketi
+
+  @@map("avatar_oge_tipi")
+}
+
+enum NadirlikSeviyesi {
+  YAYGIN        // Common
+  NADIR         // Rare
+  EPIK          // Epic
+  EFSANEVI      // Legendary
+
+  @@map("nadirlik_seviyesi")
+}
+
+// ============ HEDİYE SİSTEMİ ============
+
+model Hediye {
+  id            String          @id @default(uuid())
+  gonderenId    String
+  alanId        String
+
+  tip           HediyeTipi
+  deger         Int             // Altın miktarı veya premium gün sayısı
+  mesaj         String?
+
+  kabulEdildi   Boolean         @default(false)
+  kabulTarihi   DateTime?
+
+  olusturuldu   DateTime        @default(now())
+
+  @@index([gonderenId])
+  @@index([alanId])
+  @@map("hediyeler")
+}
+
+enum HediyeTipi {
+  ALTIN
+  PREMIUM_GUN
+  AVATAR_OGESI
+
+  @@map("hediye_tipi")
+}

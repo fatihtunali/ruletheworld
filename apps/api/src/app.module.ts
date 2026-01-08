@@ -20,6 +20,9 @@ import { BotModule } from './bot/bot.module';
 import { OyunModuModule } from './oyun-modu/oyun-modu.module';
 import { DuyuruModule } from './duyuru/duyuru.module';
 import { PremiumModule } from './premium/premium.module';
+import { GorevModule } from './gorev/gorev.module';
+import { AltinModule } from './altin/altin.module';
+import { SezonModule } from './sezon/sezon.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -97,6 +100,15 @@ import configuration from './config/configuration';
 
     // Premium Üyelik
     PremiumModule,
+
+    // Görev Sistemi
+    GorevModule,
+
+    // Sanal Para (Altın)
+    AltinModule,
+
+    // Sezon Sistemi
+    SezonModule,
   ],
   controllers: [],
   providers: [
