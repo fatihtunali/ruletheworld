@@ -90,10 +90,11 @@ export default function BasarimlarPage() {
   const kategorilereGoreGrupla = () => {
     const gruplar: Record<string, Basarim[]> = {};
     filtrelenmisBasarimlar.forEach((b) => {
-      if (!gruplar[b.kategori]) {
-        gruplar[b.kategori] = [];
+      const kategori = b.kategori;
+      if (!gruplar[kategori]) {
+        gruplar[kategori] = [];
       }
-      gruplar[b.kategori].push(b);
+      gruplar[kategori]!.push(b);
     });
     return gruplar;
   };
