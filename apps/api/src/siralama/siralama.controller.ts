@@ -5,7 +5,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
-import { SiralamaService } from './siralama.service';
+import { SiralamaService, SiralamaGirisi } from './siralama.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('siralama')
@@ -17,7 +17,7 @@ export class SiralamaController {
   async genelSiralama(
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
-  ) {
+  ): Promise<SiralamaGirisi[]> {
     return this.siralamaService.genelSiralama(
       parseInt(limit || '100'),
       parseInt(offset || '0'),
@@ -29,7 +29,7 @@ export class SiralamaController {
   async haftalikSiralama(
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
-  ) {
+  ): Promise<SiralamaGirisi[]> {
     return this.siralamaService.haftalikSiralama(
       parseInt(limit || '100'),
       parseInt(offset || '0'),
@@ -41,7 +41,7 @@ export class SiralamaController {
   async sezonSiralama(
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
-  ) {
+  ): Promise<SiralamaGirisi[]> {
     return this.siralamaService.sezonSiralama(
       parseInt(limit || '100'),
       parseInt(offset || '0'),
@@ -50,21 +50,25 @@ export class SiralamaController {
 
   // En iyi oyuncular özeti (public)
   @Get('en-iyiler')
-  async enIyiOyuncular() {
+  async enIyiOyuncular(): Promise<{
+    genelTop3: SiralamaGirisi[];
+    haftalikTop3: SiralamaGirisi[];
+    enAktif: { sira: number; oyuncu: { id: string; kullaniciAdi: string }; oynananOyun: number }[];
+  }> {
     return this.siralamaService.enIyiOyuncular();
   }
 
   // Kullanıcının kendi sıralaması
   @Get('benim')
   @UseGuards(JwtAuthGuard)
-  async kullaniciSiralama(@Request() req: { user: { id: string } }) {
+  async kullaniciSiralama(@Request() req: { user: { id: string } }): Promise<unknown> {
     return this.siralamaService.kullaniciSiralama(req.user.id);
   }
 
   // Arkadaşlar arası sıralama
   @Get('arkadaslar')
   @UseGuards(JwtAuthGuard)
-  async arkadasSiralama(@Request() req: { user: { id: string } }) {
+  async arkadasSiralama(@Request() req: { user: { id: string } }): Promise<SiralamaGirisi[]> {
     return this.siralamaService.arkadasSiralama(req.user.id);
   }
 }
