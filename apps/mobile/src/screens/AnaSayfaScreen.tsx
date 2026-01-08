@@ -62,6 +62,51 @@ export default function AnaSayfaScreen({ navigation }: Props) {
     }
   };
 
+  const getDurumRenk = (durum: string) => {
+    switch (durum) {
+      case 'BEKLEME':
+      case 'LOBI':
+        return '#f59e0b'; // yellow
+      case 'HAZIR':
+        return '#22c55e'; // green
+      case 'GERI_SAYIM':
+        return '#7c3aed'; // purple (animated in web)
+      case 'BOT_DOLDURMA':
+        return '#3b82f6'; // blue
+      case 'DEVAM_EDIYOR':
+        return '#22c55e'; // green
+      case 'TAMAMLANDI':
+        return '#6b7280'; // gray
+      case 'TERK_EDILDI':
+        return '#ef4444'; // red
+      default:
+        return '#6b7280';
+    }
+  };
+
+  const getDurumMetin = (durum: string) => {
+    switch (durum) {
+      case 'BEKLEME':
+        return 'Oyuncu Bekliyor';
+      case 'HAZIR':
+        return 'Baslamaya Hazir';
+      case 'GERI_SAYIM':
+        return 'Basliyor...';
+      case 'BOT_DOLDURMA':
+        return 'Bot Ekleniyor';
+      case 'LOBI':
+        return 'Lobide';
+      case 'DEVAM_EDIYOR':
+        return 'Devam Ediyor';
+      case 'TAMAMLANDI':
+        return 'Tamamlandi';
+      case 'TERK_EDILDI':
+        return 'Terk Edildi';
+      default:
+        return durum;
+    }
+  };
+
   const renderLobi = ({ item }: { item: Lobi }) => (
     <TouchableOpacity
       style={styles.lobiCard}
@@ -69,9 +114,9 @@ export default function AnaSayfaScreen({ navigation }: Props) {
     >
       <View style={styles.lobiHeader}>
         <Text style={styles.lobiIsim}>{item.isim}</Text>
-        <View style={[styles.durumBadge, { backgroundColor: item.durum === 'LOBI' ? '#22c55e' : '#f59e0b' }]}>
+        <View style={[styles.durumBadge, { backgroundColor: getDurumRenk(item.durum) }]}>
           <Text style={styles.durumText}>
-            {item.durum === 'LOBI' ? 'Bekliyor' : 'Devam Ediyor'}
+            {getDurumMetin(item.durum)}
           </Text>
         </View>
       </View>

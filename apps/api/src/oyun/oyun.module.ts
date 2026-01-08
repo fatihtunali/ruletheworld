@@ -5,10 +5,12 @@ import { OyunGateway } from './oyun.gateway';
 import { OyunService } from './oyun.service';
 import { OyunStateMachineService } from './oyun-state-machine.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { BildirimModule } from '../bildirim/bildirim.module';
 
 @Module({
   imports: [
     PrismaModule,
+    BildirimModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

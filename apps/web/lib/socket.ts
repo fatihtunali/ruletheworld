@@ -310,6 +310,30 @@ export const useOyunStore = create<OyunState & OyunActions>((set, get) => ({
         mesajlar: [...state.mesajlar, mesaj].slice(-100), // Son 100 mesaj
       }));
     });
+
+    // Gerçek zamanlı bildirimler
+    socket.on('bildirim', (bildirim: {
+      id?: string;
+      tip: string;
+      baslik: string;
+      icerik: string;
+      link?: string;
+      olusturuldu: string;
+    }) => {
+      // Tarayıcı bildirimi göster (izin varsa)
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification(bildirim.baslik, {
+          body: bildirim.icerik,
+          icon: '/icon-192x192.png',
+          tag: bildirim.id || 'bildirim',
+        });
+      }
+
+      // Custom event dispatch et (toast için)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('yeni-bildirim', { detail: bildirim }));
+      }
+    });
   },
 
   kopat: () => {

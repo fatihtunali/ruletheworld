@@ -1180,3 +1180,125 @@ enum HediyeTipi {
 
   @@map("hediye_tipi")
 }
+
+// ============ MATCHMAKING SİSTEMİ ============
+
+model EslesmeSirasi {
+  id            String          @id @default(uuid())
+  oyuncuId      String          @unique
+
+  // Tercihler
+  oyunModu      OyunModu        @default(NORMAL)
+  minOyuncu     Int             @default(4)
+  maxOyuncu     Int             @default(8)
+
+  // Eşleşme kriterleri
+  puanAraligi   Int             @default(500)  // +/- bu kadar puan farkı kabul edilir
+  oncelikli    Boolean          @default(false) // Premium oyuncular için
+
+  // Durum
+  durum         EslesmeDurumu   @default(BEKLIYOR)
+  eslestiAt     DateTime?
+  eslesilenToplulukId String?
+
+  olusturuldu   DateTime        @default(now())
+  guncellendi   DateTime        @updatedAt
+
+  @@index([durum, oyunModu])
+  @@index([durum, olusturuldu])
+  @@map("eslesme_siralari")
+}
+
+enum EslesmeDurumu {
+  BEKLIYOR      // Kuyruktayım
+  ESLESTI       // Eşleşme bulundu
+  IPTAL         // İptal edildi
+  ZAMAN_ASIMI   // Zaman aşımı
+
+  @@map("eslesme_durumu")
+}
+
+// ============ İZLEYİCİ SİSTEMİ ============
+
+model Izleyici {
+  id            String          @id @default(uuid())
+  oyuncuId      String
+  toplulukId    String
+
+  katildiAt     DateTime        @default(now())
+  ayrildiAt     DateTime?
+
+  @@unique([oyuncuId, toplulukId])
+  @@index([toplulukId])
+  @@map("izleyiciler")
+}
+
+// ============ AKTİVİTE AKIŞI ============
+
+model Aktivite {
+  id            String          @id @default(uuid())
+  oyuncuId      String
+
+  tip           AktiviteTipi
+  baslik        String
+  detay         Json?           // Ekstra veriler
+  referansId    String?         // İlgili obje ID'si
+  referansTip   String?         // topluluk, oyuncu, turnuva vb.
+
+  goruldu       Boolean         @default(false)
+  olusturuldu   DateTime        @default(now())
+
+  @@index([oyuncuId, olusturuldu])
+  @@index([oyuncuId, goruldu])
+  @@map("aktiviteler")
+}
+
+enum AktiviteTipi {
+  OYUN_KAZANDI
+  OYUN_KAYBETTI
+  OYUN_TAMAMLADI
+  BASARIM_KAZANDI
+  SEVIYE_ATLADI
+  ARKADAS_EKLEDI
+  ARKADAS_KABUL_ETTI
+  TURNUVA_KATILDI
+  TURNUVA_KAZANDI
+  PREMIUM_OLDU
+  SEZON_ODULU
+
+  @@map("aktivite_tipi")
+}
+
+// ============ REFERANS SİSTEMİ ============
+
+model ReferansKodu {
+  id            String          @id @default(uuid())
+  oyuncuId      String          @unique
+  kod           String          @unique
+
+  // İstatistikler
+  kullanilanSayi Int            @default(0)
+  kazanilanAltin Int            @default(0)
+
+  olusturuldu   DateTime        @default(now())
+
+  kullanimlar   ReferansKullanimi[]
+
+  @@map("referans_kodlari")
+}
+
+model ReferansKullanimi {
+  id            String          @id @default(uuid())
+  referansKodId String
+  yeniOyuncuId  String          @unique  // Bir oyuncu sadece 1 kez referans kullanabilir
+
+  // Ödül durumu
+  davetciOdulVerildi  Boolean   @default(false)
+  davetliOdulVerildi  Boolean   @default(false)
+
+  olusturuldu   DateTime        @default(now())
+
+  referansKod   ReferansKodu    @relation(fields: [referansKodId], references: [id])
+
+  @@map("referans_kullanimlari")
+}

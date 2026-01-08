@@ -25,6 +25,10 @@ import { AltinModule } from './altin/altin.module';
 import { SezonModule } from './sezon/sezon.module';
 import { ReaksiyonModule } from './reaksiyon/reaksiyon.module';
 import { IkiFactorModule } from './iki-faktor/iki-faktor.module';
+import { EslesmeModule } from './eslesme/eslesme.module';
+import { IzleyiciModule } from './izleyici/izleyici.module';
+import { AktiviteModule } from './aktivite/aktivite.module';
+import { ReferansModule } from './referans/referans.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -117,6 +121,18 @@ import configuration from './config/configuration';
 
     // İki Faktörlü Doğrulama (2FA)
     IkiFactorModule,
+
+    // Eşleştirme (Matchmaking)
+    EslesmeModule,
+
+    // İzleyici (Spectator)
+    IzleyiciModule,
+
+    // Aktivite Akışı
+    AktiviteModule,
+
+    // Referans Sistemi
+    ReferansModule,
   ],
   controllers: [],
   providers: [

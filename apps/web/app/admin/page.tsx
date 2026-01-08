@@ -6,7 +6,35 @@ import Link from 'next/link';
 import { useAuthStore } from '../../lib/store';
 import { api, AdminIstatistikler, AdminKullanici, ModeasyonLog, ToplulukListesi } from '../../lib/api';
 
-type Tab = 'genel' | 'kullanicilar' | 'topluluklar' | 'loglar';
+type Tab = 'genel' | 'kullanicilar' | 'topluluklar' | 'aktif-oyunlar' | 'loglar';
+
+interface AktifOyun {
+  id: string;
+  isim: string;
+  durum: string;
+  oyunModu: string;
+  olusturuldu: string;
+  basladiAt: string | null;
+  oyuncuSayisi: number;
+  maxOyuncu: number;
+  oyuncular: Array<{
+    id: string;
+    kullaniciAdi: string;
+    rol: string;
+    botMu: boolean;
+  }>;
+  oyunDurumu: {
+    asama: string;
+    mevcutTur: number;
+    toplamTur: number;
+    kaynaklar: {
+      hazine: number;
+      refah: number;
+      istikrar: number;
+      altyapi: number;
+    };
+  } | null;
+}
 
 export default function AdminPaneli() {
   const router = useRouter();
@@ -21,6 +49,7 @@ export default function AdminPaneli() {
   const [kullanicilar, setKullanicilar] = useState<AdminKullanici[]>([]);
   const [topluluklar, setTopluluklar] = useState<ToplulukListesi['topluluklar']>([]);
   const [loglar, setLoglar] = useState<ModeasyonLog[]>([]);
+  const [aktifOyunlar, setAktifOyunlar] = useState<AktifOyun[]>([]);
   const [arama, setArama] = useState('');
 
   useEffect(() => {
@@ -73,6 +102,22 @@ export default function AdminPaneli() {
     }
   };
 
+  const aktifOyunlariYukle = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001'}/istatistikler/aktif-oyunlar`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAktifOyunlar(data);
+      }
+    } catch (error) {
+      console.error('Aktif oyunlar yüklenemedi:', error);
+    }
+  };
+
   const toplulukSil = async (id: string, sebep: string) => {
     const res = await api.admin.toplulukSil(id, { sebep });
     if (res.error) {
@@ -91,6 +136,12 @@ export default function AdminPaneli() {
     }
     if (yetkili && aktifTab === 'loglar') {
       loglariYukle();
+    }
+    if (yetkili && aktifTab === 'aktif-oyunlar') {
+      aktifOyunlariYukle();
+      // Her 10 saniyede bir yenile
+      const interval = setInterval(aktifOyunlariYukle, 10000);
+      return () => clearInterval(interval);
     }
   }, [aktifTab, yetkili]);
 
@@ -165,12 +216,12 @@ export default function AdminPaneli() {
       {/* Tabs */}
       <div className="bg-gray-800/50 border-b border-gray-700">
         <div className="container mx-auto px-4">
-          <div className="flex gap-1">
-            {(['genel', 'kullanicilar', 'topluluklar', 'loglar'] as Tab[]).map((tab) => (
+          <div className="flex gap-1 overflow-x-auto">
+            {(['genel', 'kullanicilar', 'topluluklar', 'aktif-oyunlar', 'loglar'] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setAktifTab(tab)}
-                className={`px-4 py-3 text-sm font-medium transition-colors ${
+                className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
                   aktifTab === tab
                     ? 'text-primary-400 border-b-2 border-primary-400'
                     : 'text-gray-400 hover:text-white'
@@ -179,6 +230,15 @@ export default function AdminPaneli() {
                 {tab === 'genel' && 'Genel Bakış'}
                 {tab === 'kullanicilar' && 'Kullanıcılar'}
                 {tab === 'topluluklar' && 'Topluluklar'}
+                {tab === 'aktif-oyunlar' && (
+                  <span className="flex items-center gap-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    Aktif Oyunlar
+                  </span>
+                )}
                 {tab === 'loglar' && 'Loglar'}
               </button>
             ))}
@@ -354,6 +414,63 @@ export default function AdminPaneli() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Aktif Oyunlar Dashboard */}
+        {aktifTab === 'aktif-oyunlar' && (
+          <div className="space-y-6">
+            {/* Özet Kartlar */}
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="bg-gray-800 rounded-2xl p-5">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
+                    <span className="text-green-400">🎮</span>
+                  </div>
+                  <span className="text-sm text-gray-400">Aktif Oyun</span>
+                </div>
+                <p className="text-3xl font-bold text-white">{aktifOyunlar.length}</p>
+              </div>
+              <div className="bg-gray-800 rounded-2xl p-5">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                    <span className="text-blue-400">👥</span>
+                  </div>
+                  <span className="text-sm text-gray-400">Aktif Oyuncu</span>
+                </div>
+                <p className="text-3xl font-bold text-white">
+                  {aktifOyunlar.reduce((sum, o) => sum + o.oyuncuSayisi, 0)}
+                </p>
+              </div>
+              <div className="bg-gray-800 rounded-2xl p-5">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+                    <span className="text-yellow-400">⏳</span>
+                  </div>
+                  <span className="text-sm text-gray-400">Lobide Bekleyen</span>
+                </div>
+                <p className="text-3xl font-bold text-white">
+                  {aktifOyunlar.filter((o) => ['BEKLEME', 'HAZIR', 'LOBI'].includes(o.durum)).length}
+                </p>
+              </div>
+            </div>
+
+            {/* Oyun Listesi */}
+            {aktifOyunlar.length === 0 ? (
+              <div className="bg-gray-800 rounded-2xl p-12 text-center">
+                <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-3xl">🎮</span>
+                </div>
+                <h3 className="text-xl font-semibold text-white mb-2">Aktif Oyun Yok</h3>
+                <p className="text-gray-400">Şu anda devam eden oyun bulunmuyor</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-4">
+                {aktifOyunlar.map((oyun) => (
+                  <AktifOyunKarti key={oyun.id} oyun={oyun} />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -557,5 +674,122 @@ function ToplulukSatir({
         </button>
       </td>
     </tr>
+  );
+}
+
+function AktifOyunKarti({ oyun }: { oyun: AktifOyun }) {
+  const router = useRouter();
+
+  const durumRenkleri: Record<string, string> = {
+    BEKLEME: 'bg-yellow-500',
+    HAZIR: 'bg-green-500',
+    GERI_SAYIM: 'bg-primary-500 animate-pulse',
+    BOT_DOLDURMA: 'bg-blue-500',
+    LOBI: 'bg-yellow-500',
+    DEVAM_EDIYOR: 'bg-green-500',
+  };
+
+  const durumMetinleri: Record<string, string> = {
+    BEKLEME: 'Oyuncu Bekliyor',
+    HAZIR: 'Başlamaya Hazır',
+    GERI_SAYIM: 'Başlıyor...',
+    BOT_DOLDURMA: 'Bot Ekleniyor',
+    LOBI: 'Lobide',
+    DEVAM_EDIYOR: 'Devam Ediyor',
+  };
+
+  const asamaMetinleri: Record<string, string> = {
+    LOBI: 'Lobi',
+    TUR_BASI: 'Tur Başı',
+    OLAY_GOSTERILDI: 'Olay Gösterildi',
+    ONERI_ACIK: 'Öneri Aşaması',
+    OYLAMA_ACIK: 'Oylama',
+    HESAPLAMA: 'Hesaplanıyor',
+    SONUCLAR: 'Sonuçlar',
+    TUR_KAPANDI: 'Tur Kapandı',
+    OYUN_SONU: 'Oyun Bitti',
+  };
+
+  return (
+    <div
+      onClick={() => router.push(`/oyun/${oyun.id}`)}
+      className="bg-gray-800 rounded-2xl p-5 cursor-pointer hover:bg-gray-750 hover:ring-2 hover:ring-primary-500/50 transition-all"
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white">{oyun.isim}</h3>
+          <p className="text-xs text-gray-500">{oyun.oyunModu}</p>
+        </div>
+        <span className={`px-2 py-1 text-xs font-medium text-white rounded-full ${durumRenkleri[oyun.durum] || 'bg-gray-500'}`}>
+          {durumMetinleri[oyun.durum] || oyun.durum}
+        </span>
+      </div>
+
+      {/* Oyun Durumu (oyun başlamışsa) */}
+      {oyun.oyunDurumu && oyun.durum === 'DEVAM_EDIYOR' && (
+        <div className="mb-4 p-3 bg-gray-700/50 rounded-xl">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-gray-400">
+              Tur {oyun.oyunDurumu.mevcutTur}/{oyun.oyunDurumu.toplamTur}
+            </span>
+            <span className="text-xs px-2 py-1 bg-primary-500/20 text-primary-400 rounded">
+              {asamaMetinleri[oyun.oyunDurumu.asama] || oyun.oyunDurumu.asama}
+            </span>
+          </div>
+          {/* Kaynaklar */}
+          <div className="grid grid-cols-4 gap-2 text-center">
+            <div>
+              <p className="text-xs text-gray-500">Hazine</p>
+              <p className="text-sm font-medium text-yellow-400">{oyun.oyunDurumu.kaynaklar.hazine}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Refah</p>
+              <p className="text-sm font-medium text-green-400">{oyun.oyunDurumu.kaynaklar.refah}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">İstikrar</p>
+              <p className="text-sm font-medium text-blue-400">{oyun.oyunDurumu.kaynaklar.istikrar}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Altyapı</p>
+              <p className="text-sm font-medium text-purple-400">{oyun.oyunDurumu.kaynaklar.altyapi}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Oyuncular */}
+      <div className="mb-3">
+        <p className="text-xs text-gray-500 mb-2">Oyuncular ({oyun.oyuncuSayisi}/{oyun.maxOyuncu})</p>
+        <div className="flex flex-wrap gap-1">
+          {oyun.oyuncular.map((o) => (
+            <span
+              key={o.id}
+              className={`px-2 py-1 text-xs rounded ${
+                o.botMu
+                  ? 'bg-blue-500/20 text-blue-400'
+                  : o.rol === 'KURUCU'
+                    ? 'bg-yellow-500/20 text-yellow-400'
+                    : 'bg-gray-700 text-gray-300'
+              }`}
+            >
+              {o.botMu ? '🤖 ' : o.rol === 'KURUCU' ? '👑 ' : ''}
+              {o.kullaniciAdi}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between text-xs text-gray-500">
+        <span>
+          {oyun.basladiAt
+            ? `Başladı: ${new Date(oyun.basladiAt).toLocaleTimeString('tr-TR')}`
+            : `Oluşturuldu: ${new Date(oyun.olusturuldu).toLocaleTimeString('tr-TR')}`}
+        </span>
+        <span className="text-primary-400">Detay →</span>
+      </div>
+    </div>
   );
 }

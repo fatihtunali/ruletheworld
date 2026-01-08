@@ -4,6 +4,7 @@ import {
   SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
@@ -12,6 +13,8 @@ import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { OyunService } from './oyun.service';
+import { BildirimService } from '../bildirim/bildirim.service';
+import { TIMING } from './oyun-state-machine.service';
 
 interface AuthenticatedSocket extends Socket {
   oyuncuId?: string;
@@ -20,11 +23,11 @@ interface AuthenticatedSocket extends Socket {
 
 @WebSocketGateway({
   cors: {
-    origin: ['http://localhost:3000', 'http://192.168.1.107'],
+    origin: ['http://localhost:3000', 'http://192.168.1.107', 'https://haydihepberaber.com'],
     credentials: true,
   },
 })
-export class OyunGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class OyunGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
@@ -33,11 +36,22 @@ export class OyunGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Aşama zamanlayıcıları
   private asamaZamanlayicilari = new Map<string, NodeJS.Timeout>();
 
+  // Geri sayım zamanlayıcıları
+  private countdownTimers = new Map<string, NodeJS.Timeout>();
+  private countdownIntervals = new Map<string, NodeJS.Timeout>();
+
   constructor(
     private oyunService: OyunService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private bildirimService: BildirimService,
   ) {}
+
+  // Gateway başlatıldığında socket server'ı bildirim servisine kaydet
+  afterInit(server: Server) {
+    this.bildirimService.setSocketServer(server);
+    this.logger.log('WebSocket server bildirim servisine kaydedildi');
+  }
 
   async handleConnection(client: AuthenticatedSocket) {
     try {
@@ -55,6 +69,10 @@ export class OyunGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
 
       client.oyuncuId = payload.sub;
+
+      // Bildirim servisi için socket kaydı
+      this.bildirimService.registerSocket(payload.sub, client.id);
+
       this.logger.log(`Oyuncu bağlandı: ${payload.sub}`);
     } catch (error) {
       this.logger.warn(`Token doğrulama hatası: ${error}`);
@@ -64,6 +82,11 @@ export class OyunGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   async handleDisconnect(client: AuthenticatedSocket) {
+    // Bildirim servisi için socket kaydını kaldır
+    if (client.oyuncuId) {
+      this.bildirimService.unregisterSocket(client.oyuncuId, client.id);
+    }
+
     if (client.oyuncuId && client.toplulukId) {
       this.oyunService.oyuncuAyrildi(client.toplulukId, client.oyuncuId);
 
@@ -127,6 +150,151 @@ export class OyunGateway implements OnGatewayConnection, OnGatewayDisconnect {
       oyuncuId: client.oyuncuId,
       hazir: yeniDurum,
     });
+  }
+
+  @SubscribeMessage('countdown-baslat')
+  async handleCountdownBaslat(@ConnectedSocket() client: AuthenticatedSocket) {
+    if (!client.oyuncuId || !client.toplulukId) {
+      client.emit('hata', { mesaj: 'Topluluğa katılmalısınız' });
+      return;
+    }
+
+    // Kurucu kontrolü
+    const durum = await this.oyunService.toplulukDurumuGetir(client.toplulukId, client.oyuncuId);
+    if (!durum) {
+      client.emit('hata', { mesaj: 'Topluluk bulunamadı' });
+      return;
+    }
+
+    const benimRolum = durum.oyuncular.find(o => o.id === client.oyuncuId)?.rol;
+    if (benimRolum !== 'KURUCU') {
+      client.emit('hata', { mesaj: 'Sadece kurucu geri sayımı başlatabilir' });
+      return;
+    }
+
+    // Minimum oyuncu kontrolü
+    if (durum.oyuncular.length < 4) {
+      client.emit('hata', { mesaj: 'En az 4 oyuncu gerekli' });
+      return;
+    }
+
+    // Herkes hazır mı?
+    const hazirSayisi = durum.oyuncular.filter(o => o.hazir).length;
+    if (hazirSayisi !== durum.oyuncular.length) {
+      client.emit('hata', { mesaj: 'Tüm oyuncular hazır değil' });
+      return;
+    }
+
+    const toplulukId = client.toplulukId;
+    const countdownSure = TIMING.COUNTDOWN / 1000; // saniye
+
+    // Önceki countdown'ı temizle
+    this.countdownTemizle(toplulukId);
+
+    // Geri sayım başladı
+    this.server.to(toplulukId).emit('geri-sayim-basladi', {
+      kalanSure: countdownSure,
+    });
+
+    // Durum değişikliği
+    this.server.to(toplulukId).emit('durum-degisti', {
+      durum: 'GERI_SAYIM',
+    });
+
+    this.logger.log(`Geri sayım başladı: ${toplulukId}`);
+
+    // Her saniye güncelle
+    let kalanSaniye = countdownSure;
+    const interval = setInterval(() => {
+      kalanSaniye--;
+      if (kalanSaniye > 0) {
+        this.server.to(toplulukId).emit('geri-sayim-guncellendi', {
+          kalanSure: kalanSaniye,
+        });
+      }
+    }, 1000);
+    this.countdownIntervals.set(toplulukId, interval);
+
+    // Süre bitince oyunu başlat
+    const oyuncuId = client.oyuncuId!;
+    const timeout = setTimeout(async () => {
+      this.countdownTemizle(toplulukId);
+
+      // Bot doldurma durumuna geç (eğer gerekirse)
+      const mevcutDurum = await this.oyunService.toplulukDurumuGetir(toplulukId, oyuncuId);
+      if (mevcutDurum && mevcutDurum.oyuncular.length < 4) {
+        // Bot ekleme gerekiyor
+        this.server.to(toplulukId).emit('durum-degisti', {
+          durum: 'BOT_DOLDURMA',
+        });
+        // Bot ekleme işlemi topluluk service'te yapılacak
+      }
+
+      // Oyunu başlat
+      await this.handleOyunuBaslatInternal(toplulukId, oyuncuId);
+    }, TIMING.COUNTDOWN);
+    this.countdownTimers.set(toplulukId, timeout);
+  }
+
+  @SubscribeMessage('countdown-iptal')
+  async handleCountdownIptal(@ConnectedSocket() client: AuthenticatedSocket) {
+    if (!client.oyuncuId || !client.toplulukId) {
+      client.emit('hata', { mesaj: 'Topluluğa katılmalısınız' });
+      return;
+    }
+
+    // Kurucu kontrolü
+    const durum = await this.oyunService.toplulukDurumuGetir(client.toplulukId, client.oyuncuId);
+    if (!durum) return;
+
+    const benimRolum = durum.oyuncular.find(o => o.id === client.oyuncuId)?.rol;
+    if (benimRolum !== 'KURUCU') {
+      client.emit('hata', { mesaj: 'Sadece kurucu geri sayımı iptal edebilir' });
+      return;
+    }
+
+    const toplulukId = client.toplulukId;
+    this.countdownTemizle(toplulukId);
+
+    // İptal bildirimi
+    this.server.to(toplulukId).emit('geri-sayim-iptal');
+    this.server.to(toplulukId).emit('durum-degisti', {
+      durum: 'HAZIR',
+    });
+
+    this.logger.log(`Geri sayım iptal edildi: ${toplulukId}`);
+  }
+
+  private countdownTemizle(toplulukId: string) {
+    const timer = this.countdownTimers.get(toplulukId);
+    if (timer) {
+      clearTimeout(timer);
+      this.countdownTimers.delete(toplulukId);
+    }
+
+    const interval = this.countdownIntervals.get(toplulukId);
+    if (interval) {
+      clearInterval(interval);
+      this.countdownIntervals.delete(toplulukId);
+    }
+  }
+
+  private async handleOyunuBaslatInternal(toplulukId: string, oyuncuId: string) {
+    const sonuc = await this.oyunService.oyunuBaslat(toplulukId, oyuncuId);
+
+    if (!sonuc.basarili) {
+      this.server.to(toplulukId).emit('hata', { mesaj: sonuc.hata });
+      return;
+    }
+
+    // Tüm oyunculara oyun başladı
+    const durum = await this.oyunService.toplulukDurumuGetir(toplulukId, oyuncuId);
+    this.server.to(toplulukId).emit('oyun-basladi', {
+      kaynaklar: durum?.kaynaklar,
+    });
+
+    // İlk turu başlat
+    await this.yeniTurBaslat(toplulukId);
   }
 
   @SubscribeMessage('oyunu-baslat')
