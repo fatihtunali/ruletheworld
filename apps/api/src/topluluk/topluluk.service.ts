@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ToplulukOlusturDto } from './dto/topluluk.dto';
-import { ToplulukDurumu, UyeRolu } from '@prisma/client';
+import { ToplulukDurumu, UyeRolu, BotKisilik } from '@prisma/client';
 import { BotService } from '../bot/bot.service';
 
 // Otomatik bot ekleme için bekleme süreleri (ms)
@@ -341,7 +341,7 @@ export class ToplulukService {
     }
 
     const eklenecek = Math.min(adet, bosYer);
-    const eklenenBotlar = [];
+    const eklenenBotlar: { id: string; kisilik: BotKisilik }[] = [];
 
     for (let i = 0; i < eklenecek; i++) {
       const bot = await this.botService.botGetirVeyaOlustur();
