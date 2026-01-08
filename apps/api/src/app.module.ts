@@ -23,6 +23,7 @@ import { PremiumModule } from './premium/premium.module';
 import { GorevModule } from './gorev/gorev.module';
 import { AltinModule } from './altin/altin.module';
 import { SezonModule } from './sezon/sezon.module';
+import { ReaksiyonModule } from './reaksiyon/reaksiyon.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -109,6 +110,9 @@ import configuration from './config/configuration';
 
     // Sezon Sistemi
     SezonModule,
+
+    // Reaksiyon/Emoji Sistemi
+    ReaksiyonModule,
   ],
   controllers: [],
   providers: [

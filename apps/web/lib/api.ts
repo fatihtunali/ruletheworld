@@ -287,6 +287,28 @@ export const api = {
     request<{ miktar: number; yeniBakiye: number }>('/altin/gunluk-bonus', {
       method: 'POST',
     }),
+
+  // Reaksiyonlar
+  reaksiyonlar: {
+    emojiler: () => request<{ emojiler: string[] }>('/reaksiyonlar/emojiler'),
+
+    toggle: (mesajId: string, emoji: string) =>
+      request<{ eklendi: boolean; reaksiyonlar: ReaksiyonOzeti[] }>(
+        `/reaksiyonlar/mesaj/${mesajId}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ emoji }),
+        },
+      ),
+
+    getir: (mesajId: string) =>
+      request<{ reaksiyonlar: ReaksiyonOzeti[] }>(`/reaksiyonlar/mesaj/${mesajId}`),
+
+    oyuncular: (mesajId: string, emoji: string) =>
+      request<{ oyuncular: { id: string; kullaniciAdi: string }[] }>(
+        `/reaksiyonlar/mesaj/${mesajId}/emoji/${encodeURIComponent(emoji)}/oyuncular`,
+      ),
+  },
 };
 
 // Types
@@ -711,4 +733,11 @@ export interface AltinIslem {
   miktar: number;
   aciklama: string;
   olusturulma: string;
+}
+
+// Reaksiyon Types
+export interface ReaksiyonOzeti {
+  emoji: string;
+  sayi: number;
+  benReaksiyonVerdimMi: boolean;
 }

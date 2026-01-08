@@ -64,6 +64,7 @@ model Oyuncu {
   gonderilenArkadasliklar Arkadaslik[]   @relation("GonderenOyuncu")
   alinanArkadasliklar     Arkadaslik[]   @relation("AlanOyuncu")
   premiumUyelikler        PremiumUyelik[]
+  mesajReaksiyonlari      MesajReaksiyon[]
 
   @@index([sistemRolu])
   @@index([hesapDurumu])
@@ -389,6 +390,7 @@ model Mesaj {
 
   topluluk    Topluluk @relation(fields: [toplulukId], references: [id], onDelete: Cascade)
   oyuncu      Oyuncu   @relation(fields: [oyuncuId], references: [id])
+  reaksiyonlar MesajReaksiyon[]
 
   @@index([toplulukId, olusturuldu])
   @@map("mesajlar")
@@ -1030,6 +1032,9 @@ model MesajReaksiyon {
   emoji         String          // 👍, ❤️, 😂, 😮, 😢, 😡
 
   olusturuldu   DateTime        @default(now())
+
+  mesaj         Mesaj           @relation(fields: [mesajId], references: [id], onDelete: Cascade)
+  oyuncu        Oyuncu          @relation(fields: [oyuncuId], references: [id], onDelete: Cascade)
 
   @@unique([mesajId, oyuncuId, emoji])
   @@index([mesajId])
