@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/node';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 // Initialize Sentry before anything else
@@ -52,6 +53,64 @@ async function bootstrap() {
 
   // API prefix
   app.setGlobalPrefix('api');
+
+  // Swagger API Documentation
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('RuleTheWorld API')
+    .setDescription(`
+      RuleTheWorld (Haydi Hep Beraber) oyunu için API dokümantasyonu.
+
+      ## Özellikler
+      - Kullanıcı kimlik doğrulama ve yetkilendirme
+      - Topluluk yönetimi ve oyun mekaniği
+      - Gerçek zamanlı WebSocket desteği
+      - Turnuva ve liderlik tabloları
+      - Görev ve başarım sistemi
+      - Sezon ve ödül sistemi
+      - Sanal para (Altın) sistemi
+      - Premium üyelik sistemi
+    `)
+    .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'JWT token girin',
+        in: 'header',
+      },
+      'JWT-auth',
+    )
+    .addTag('Auth', 'Kimlik doğrulama işlemleri')
+    .addTag('Topluluk', 'Topluluk yönetimi')
+    .addTag('Oyun', 'Oyun mekanikleri')
+    .addTag('Turnuva', 'Turnuva yönetimi')
+    .addTag('İstatistik', 'İstatistikler ve liderlik tabloları')
+    .addTag('Bildirim', 'Bildirim sistemi')
+    .addTag('Başarım', 'Başarım sistemi')
+    .addTag('Görev', 'Görev sistemi')
+    .addTag('Sezon', 'Sezon sistemi')
+    .addTag('Altın', 'Sanal para sistemi')
+    .addTag('Premium', 'Premium üyelik')
+    .addTag('Admin', 'Admin panel')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('docs', app, document, {
+    customSiteTitle: 'RuleTheWorld API Docs',
+    customfavIcon: 'https://haydihepberaber.com/favicon.ico',
+    customCss: `
+      .swagger-ui .topbar { display: none }
+      .swagger-ui .info { margin-bottom: 30px }
+    `,
+    swaggerOptions: {
+      persistAuthorization: true,
+      docExpansion: 'none',
+      filter: true,
+      showRequestDuration: true,
+    },
+  });
 
   // Global error handling
   process.on('unhandledRejection', (reason) => {
