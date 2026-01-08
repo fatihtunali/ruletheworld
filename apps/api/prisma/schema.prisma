@@ -38,6 +38,11 @@ model Oyuncu {
   guncellendi   DateTime @updatedAt
   sonAktiflik   DateTime @default(now())
 
+  // Skor ve sıralama
+  toplamPuan        Int      @default(0)
+  sezonPuani        Int      @default(0)
+  haftalikPuan      Int      @default(0)
+
   // İlişkiler
   uyelikler             ToplulukUyesi[]
   oneriler              Oneri[]
@@ -52,6 +57,8 @@ model Oyuncu {
   basarimlar            KazanilanBasarim[]
   turnuvaKatilimlari    TurnuvaKatilimci[]
   emailDogrulamalari    EmailDogrulama[]
+  gonderilenArkadasliklar Arkadaslik[]   @relation("GonderenOyuncu")
+  alinanArkadasliklar     Arkadaslik[]   @relation("AlanOyuncu")
 
   @@index([sistemRolu])
   @@index([hesapDurumu])
@@ -653,4 +660,36 @@ enum MacDurumu {
   IPTAL
 
   @@map("mac_durumu")
+}
+
+// ============ ARKADASLIK ============
+
+model Arkadaslik {
+  id          String            @id @default(uuid())
+  gonderenId  String
+  alanId      String
+
+  durum       ArkadaslikDurumu  @default(BEKLIYOR)
+
+  olusturuldu DateTime          @default(now())
+  guncellendi DateTime          @updatedAt
+  yanitlandiAt DateTime?
+
+  gonderen    Oyuncu            @relation("GonderenOyuncu", fields: [gonderenId], references: [id], onDelete: Cascade)
+  alan        Oyuncu            @relation("AlanOyuncu", fields: [alanId], references: [id], onDelete: Cascade)
+
+  @@unique([gonderenId, alanId])
+  @@index([gonderenId])
+  @@index([alanId])
+  @@index([durum])
+  @@map("arkadasliklar")
+}
+
+enum ArkadaslikDurumu {
+  BEKLIYOR
+  KABUL_EDILDI
+  REDDEDILDI
+  ENGELLENDI
+
+  @@map("arkadaslik_durumu")
 }

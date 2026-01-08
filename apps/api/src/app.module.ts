@@ -14,6 +14,8 @@ import { TekrarModule } from './tekrar/tekrar.module';
 import { TurnuvaModule } from './turnuva/turnuva.module';
 import { CacheModuleConfig } from './cache/cache.module';
 import { EmailModule } from './email/email.module';
+import { ArkadaslikModule } from './arkadaslik/arkadaslik.module';
+import { SiralamaModule } from './siralama/siralama.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -73,6 +75,12 @@ import configuration from './config/configuration';
 
     // Turnuvalar
     TurnuvaModule,
+
+    // Arkadaslik
+    ArkadaslikModule,
+
+    // Siralama (Leaderboard)
+    SiralamaModule,
   ],
   controllers: [],
   providers: [
