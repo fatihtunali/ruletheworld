@@ -83,11 +83,27 @@ export interface Mesaj {
   zaman: string;
 }
 
+// Lobby states (from state machine)
+export type ToplulukDurumu =
+  | 'BEKLEME' | 'HAZIR' | 'GERI_SAYIM' | 'BOT_DOLDURMA'  // New states
+  | 'LOBI' | 'DEVAM_EDIYOR' | 'TAMAMLANDI' | 'TERK_EDILDI';  // Backward compat
+
+// Round states (from state machine)
+export type OyunAsamasi =
+  | 'OLAY_GOSTERILDI' | 'ONERI_ACIK' | 'OYLAMA_ACIK' | 'HESAPLAMA' | 'SONUCLAR' | 'TUR_KAPANDI'  // New states
+  | 'LOBI' | 'TUR_BASI' | 'OLAY_ACILISI' | 'TARTISMA' | 'OYLAMA' | 'TUR_SONU' | 'OYUN_SONU' | 'SONUC';  // Backward compat
+
+// Game result (from state machine)
+export type OyunSonucu =
+  | 'PARLADI' | 'GELISTI' | 'DURAGAN' | 'GERILEDI' | 'COKTU'  // New states
+  | 'HAYATTA_KALDI' | 'ZORLANDI';  // Backward compat
+
 export interface OyunState {
   toplulukId: string | null;
   toplulukIsmi: string;
-  durum: 'LOBI' | 'DEVAM_EDIYOR' | 'TAMAMLANDI';
-  asama: 'LOBI' | 'TUR_BASI' | 'OLAY_ACILISI' | 'TARTISMA' | 'OYLAMA' | 'TUR_SONU' | 'OYUN_SONU' | 'SONUC';
+  toplulukKodu: string;
+  durum: ToplulukDurumu;
+  asama: OyunAsamasi;
   mevcutTur: number;
   toplamTur: number;
   kaynaklar: Kaynaklar;
@@ -96,11 +112,13 @@ export interface OyunState {
   oneriler: Oneri[];
   mesajlar: Mesaj[];
   sonuc: {
-    durum: 'PARLADI' | 'HAYATTA_KALDI' | 'ZORLANDI' | 'COKTU';
+    durum: OyunSonucu;
     kaynaklar: Kaynaklar;
     ozet: string;
+    carpan?: number;
   } | null;
   asamaBitisZamani: number | null;
+  geriSayim: number | null;  // Countdown for lobby
   bagli: boolean;
   yukleniyor: boolean;
   hata: string | null;
@@ -111,6 +129,8 @@ interface OyunActions {
   kopat: () => void;
   hazirOl: () => void;
   oyunuBaslat: () => void;
+  countdownBaslat: () => void;
+  countdownIptal: () => void;
   oneriGonder: (secenekId: string, aciklama: string) => void;
   oyVer: (oneriId: string, secim: 'EVET' | 'HAYIR' | 'CEKIMSER') => void;
   mesajGonder: (icerik: string) => void;
@@ -120,17 +140,19 @@ interface OyunActions {
 const initialState: OyunState = {
   toplulukId: null,
   toplulukIsmi: '',
-  durum: 'LOBI',
+  toplulukKodu: '',
+  durum: 'BEKLEME',
   asama: 'LOBI',
   mevcutTur: 0,
-  toplamTur: 6,
-  kaynaklar: { hazine: 1000, refah: 60, istikrar: 60, altyapi: 50 },
+  toplamTur: 10,
+  kaynaklar: { hazine: 50, refah: 50, istikrar: 50, altyapi: 50 },
   oyuncular: [],
   mevcutOlay: null,
   oneriler: [],
   mesajlar: [],
   sonuc: null,
   asamaBitisZamani: null,
+  geriSayim: null,
   bagli: false,
   yukleniyor: false,
   hata: null,
@@ -180,6 +202,36 @@ export const useOyunStore = create<OyunState & OyunActions>((set, get) => ({
         oyuncular: state.oyuncular.map((o) =>
           o.id === data.oyuncuId ? { ...o, hazir: data.hazir } : o
         ),
+      }));
+    });
+
+    // New state machine events
+    socket.on('durum-degisti', (data: { durum: ToplulukDurumu }) => {
+      set({ durum: data.durum });
+    });
+
+    socket.on('geri-sayim-basladi', (data: { kalanSure: number }) => {
+      set({
+        durum: 'GERI_SAYIM',
+        geriSayim: data.kalanSure,
+      });
+    });
+
+    socket.on('geri-sayim-guncellendi', (data: { kalanSure: number }) => {
+      set({ geriSayim: data.kalanSure });
+    });
+
+    socket.on('geri-sayim-iptal', () => {
+      set({
+        durum: 'HAZIR',
+        geriSayim: null,
+      });
+    });
+
+    socket.on('bot-eklendi', (data: { oyuncu: OyuncuDurumu; oyuncuSayisi: number }) => {
+      set((state) => ({
+        durum: 'BOT_DOLDURMA',
+        oyuncular: [...state.oyuncular.filter((o) => o.id !== data.oyuncu.id), data.oyuncu],
       }));
     });
 
@@ -273,6 +325,16 @@ export const useOyunStore = create<OyunState & OyunActions>((set, get) => ({
   oyunuBaslat: () => {
     const socket = getSocket();
     socket.emit('oyunu-baslat');
+  },
+
+  countdownBaslat: () => {
+    const socket = getSocket();
+    socket.emit('countdown-baslat');
+  },
+
+  countdownIptal: () => {
+    const socket = getSocket();
+    socket.emit('countdown-iptal');
   },
 
   oneriGonder: (secenekId: string, aciklama: string) => {

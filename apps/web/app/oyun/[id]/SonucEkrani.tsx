@@ -14,15 +14,63 @@ export default function SonucEkrani() {
     );
   }
 
-  const durumBilgileri = {
+  // New result classification from state machine
+  const durumBilgileri: Record<string, {
+    baslik: string;
+    aciklama: string;
+    renk: string;
+    bgRenk: string;
+    borderRenk: string;
+    ikon: string;
+    carpan: number;
+  }> = {
+    // New states (min-based classification)
     PARLADI: {
       baslik: 'Topluluk Parladı!',
-      aciklama: 'Mükemmel liderlik! Topluluk refah içinde serpildi.',
+      aciklama: 'Mükemmel liderlik! Tüm kaynaklar 70+ - En yüksek puan!',
       renk: 'text-yellow-400',
       bgRenk: 'bg-yellow-500/20',
       borderRenk: 'border-yellow-500/50',
       ikon: '🌟',
+      carpan: 1.5,
     },
+    GELISTI: {
+      baslik: 'Topluluk Gelişti',
+      aciklama: 'İyi yönetim! Topluluk dengeli bir şekilde büyüdü.',
+      renk: 'text-green-400',
+      bgRenk: 'bg-green-500/20',
+      borderRenk: 'border-green-500/50',
+      ikon: '📈',
+      carpan: 1.25,
+    },
+    DURAGAN: {
+      baslik: 'Topluluk Durağan',
+      aciklama: 'İdare eder. Topluluk ayakta kaldı ama gelişemedi.',
+      renk: 'text-blue-400',
+      bgRenk: 'bg-blue-500/20',
+      borderRenk: 'border-blue-500/50',
+      ikon: '➡️',
+      carpan: 1.0,
+    },
+    GERILEDI: {
+      baslik: 'Topluluk Geriledi',
+      aciklama: 'Kötü kararlar toplulugu zayıflattı. Daha iyisini yapabilirsin!',
+      renk: 'text-orange-400',
+      bgRenk: 'bg-orange-500/20',
+      borderRenk: 'border-orange-500/50',
+      ikon: '📉',
+      carpan: 0.75,
+    },
+    COKTU: {
+      baslik: 'Topluluk Çöktü',
+      aciklama: 'Bir kaynak tamamen tükendi. Bir dahaki sefere!',
+      renk: 'text-red-400',
+      bgRenk: 'bg-red-500/20',
+      borderRenk: 'border-red-500/50',
+      ikon: '💔',
+      carpan: 0.5,
+    },
+    // Backward compatibility
     HAYATTA_KALDI: {
       baslik: 'Topluluk Hayatta Kaldı',
       aciklama: 'Zorluklara rağmen topluluk ayakta kalmayı başardı.',
@@ -30,6 +78,7 @@ export default function SonucEkrani() {
       bgRenk: 'bg-green-500/20',
       borderRenk: 'border-green-500/50',
       ikon: '✓',
+      carpan: 1.0,
     },
     ZORLANDI: {
       baslik: 'Topluluk Zorlandı',
@@ -38,18 +87,22 @@ export default function SonucEkrani() {
       bgRenk: 'bg-orange-500/20',
       borderRenk: 'border-orange-500/50',
       ikon: '⚠️',
-    },
-    COKTU: {
-      baslik: 'Topluluk Çöktü',
-      aciklama: 'Ne yazık ki topluluk ayakta kalamadı. Bir dahaki sefere!',
-      renk: 'text-red-400',
-      bgRenk: 'bg-red-500/20',
-      borderRenk: 'border-red-500/50',
-      ikon: '💔',
+      carpan: 0.75,
     },
   };
 
-  const durum = durumBilgileri[sonuc.durum];
+  // Default fallback for unknown status
+  const defaultDurum = {
+    baslik: 'Sonuç',
+    aciklama: 'Oyun tamamlandı.',
+    renk: 'text-gray-400',
+    bgRenk: 'bg-gray-500/20',
+    borderRenk: 'border-gray-500/50',
+    ikon: '📊',
+    carpan: 1.0,
+  };
+
+  const durum = durumBilgileri[sonuc.durum] ?? defaultDurum;
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -67,7 +120,14 @@ export default function SonucEkrani() {
           <div className={`${durum.bgRenk} border ${durum.borderRenk} rounded-2xl p-8 text-center mb-8`}>
             <div className="text-6xl mb-4">{durum.ikon}</div>
             <h2 className={`text-3xl font-bold ${durum.renk} mb-2`}>{durum.baslik}</h2>
-            <p className="text-gray-300">{durum.aciklama}</p>
+            <p className="text-gray-300 mb-4">{durum.aciklama}</p>
+            {/* Score multiplier */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800/50 rounded-lg">
+              <span className="text-gray-400">Puan Çarpanı:</span>
+              <span className={`text-lg font-bold ${durum.carpan >= 1 ? 'text-green-400' : 'text-red-400'}`}>
+                x{sonuc.carpan || durum.carpan}
+              </span>
+            </div>
           </div>
 
           {/* Özet */}
@@ -85,19 +145,19 @@ export default function SonucEkrani() {
               <KaynakKarti
                 isim="Hazine"
                 deger={sonuc.kaynaklar.hazine}
-                baslangic={1000}
+                baslangic={50}
                 ikon="💰"
               />
               <KaynakKarti
                 isim="Refah"
                 deger={sonuc.kaynaklar.refah}
-                baslangic={60}
+                baslangic={50}
                 ikon="😊"
               />
               <KaynakKarti
                 isim="İstikrar"
                 deger={sonuc.kaynaklar.istikrar}
-                baslangic={60}
+                baslangic={50}
                 ikon="⚖️"
               />
               <KaynakKarti

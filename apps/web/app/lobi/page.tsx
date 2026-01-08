@@ -252,14 +252,26 @@ export default function LobiSayfasi() {
 function ToplulukKarti({ topluluk }: { topluluk: Topluluk }) {
   const router = useRouter();
 
-  const durumRenkleri = {
+  const durumRenkleri: Record<string, string> = {
+    // New states
+    BEKLEME: 'bg-yellow-500',
+    HAZIR: 'bg-green-500',
+    GERI_SAYIM: 'bg-primary-500 animate-pulse',
+    BOT_DOLDURMA: 'bg-blue-500',
+    // Legacy states
     LOBI: 'bg-yellow-500',
     DEVAM_EDIYOR: 'bg-green-500',
     TAMAMLANDI: 'bg-gray-500',
     TERK_EDILDI: 'bg-red-500',
   };
 
-  const durumMetinleri = {
+  const durumMetinleri: Record<string, string> = {
+    // New states
+    BEKLEME: 'Oyuncu Bekliyor',
+    HAZIR: 'Başlamaya Hazır',
+    GERI_SAYIM: 'Başlıyor...',
+    BOT_DOLDURMA: 'Bot Ekleniyor',
+    // Legacy states
     LOBI: 'Oyuncu Bekliyor',
     DEVAM_EDIYOR: 'Oyun Devam Ediyor',
     TAMAMLANDI: 'Tamamlandı',
@@ -293,7 +305,7 @@ function ToplulukKarti({ topluluk }: { topluluk: Topluluk }) {
         </div>
       </div>
 
-      {topluluk.durum === 'LOBI' && (
+      {['LOBI', 'BEKLEME', 'HAZIR', 'GERI_SAYIM', 'BOT_DOLDURMA'].includes(topluluk.durum) && (
         <div className="mt-4 pt-4 border-t border-gray-700">
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-500">Katılım Kodu:</span>

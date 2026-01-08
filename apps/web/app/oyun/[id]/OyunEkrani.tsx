@@ -65,11 +65,11 @@ export default function OyunEkrani() {
   const prevAsama = useRef(asama);
   useEffect(() => {
     if (asama !== prevAsama.current) {
-      if (asama === 'TUR_BASI') {
+      if (asama === 'TUR_BASI' || asama === 'OLAY_GOSTERILDI') {
         SoundEffects.turnStart();
-      } else if (asama === 'OYLAMA') {
+      } else if (asama === 'OYLAMA' || asama === 'OYLAMA_ACIK') {
         SoundEffects.voteStart();
-      } else if (asama === 'TUR_SONU') {
+      } else if (asama === 'TUR_SONU' || asama === 'SONUCLAR' || asama === 'TUR_KAPANDI') {
         SoundEffects.success();
       }
       prevAsama.current = asama;
@@ -97,11 +97,20 @@ export default function OyunEkrani() {
   };
 
   const asamaMetinleri: Record<string, string> = {
+    // New states from state machine
+    OLAY_GOSTERILDI: 'Olay İnceleniyor',
+    ONERI_ACIK: 'Öneri Zamanı',
+    OYLAMA_ACIK: 'Oylama Zamanı',
+    HESAPLAMA: 'Sonuç Hesaplanıyor',
+    SONUCLAR: 'Sonuçlar',
+    TUR_KAPANDI: 'Tur Tamamlandı',
+    // Backward compatibility
     TUR_BASI: 'Tur Başlıyor',
     OLAY_ACILISI: 'Olay İnceleniyor',
     TARTISMA: 'Tartışma',
     OYLAMA: 'Oylama',
     TUR_SONU: 'Tur Sonucu',
+    OYUN_SONU: 'Oyun Bitti',
   };
 
   return (
@@ -175,7 +184,7 @@ export default function OyunEkrani() {
             )}
 
             {/* Seçenekler veya Öneriler */}
-            {asama === 'TARTISMA' && mevcutOlay && (
+            {(asama === 'TARTISMA' || asama === 'ONERI_ACIK') && mevcutOlay && (
               <div className="bg-gray-800 rounded-2xl p-6">
                 <h3 className="text-lg font-semibold text-white mb-4">Öneri Yap</h3>
                 <div className="grid md:grid-cols-2 gap-4 mb-4">
@@ -209,7 +218,7 @@ export default function OyunEkrani() {
             )}
 
             {/* Oylama */}
-            {asama === 'OYLAMA' && oneriler.length > 0 && (
+            {(asama === 'OYLAMA' || asama === 'OYLAMA_ACIK') && oneriler.length > 0 && (
               <div className="bg-gray-800 rounded-2xl p-6">
                 <h3 className="text-lg font-semibold text-white mb-4">Önerileri Oyla</h3>
                 <div className="space-y-4">
@@ -226,8 +235,17 @@ export default function OyunEkrani() {
               </div>
             )}
 
-            {/* Tur Sonu */}
-            {asama === 'TUR_SONU' && (
+            {/* Hesaplama */}
+            {asama === 'HESAPLAMA' && (
+              <div className="bg-gray-800 rounded-2xl p-6 text-center">
+                <div className="animate-spin h-12 w-12 border-4 border-primary-500 border-t-transparent rounded-full mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-white mb-2">Hesaplanıyor</h3>
+                <p className="text-gray-400">Oylar değerlendiriliyor...</p>
+              </div>
+            )}
+
+            {/* Sonuçlar / Tur Sonu */}
+            {(asama === 'TUR_SONU' || asama === 'SONUCLAR' || asama === 'TUR_KAPANDI') && (
               <div className="bg-gray-800 rounded-2xl p-6 text-center">
                 <h3 className="text-xl font-semibold text-white mb-2">Tur Tamamlandı</h3>
                 <p className="text-gray-400">Sonraki tur hazırlanıyor...</p>

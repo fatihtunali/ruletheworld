@@ -2,13 +2,20 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ToplulukDurumu, OyunAsamasi, UyeRolu, OneriDurumu, OySecimi, OyunSonucu } from '@prisma/client';
 import { rastgeleOlayGetir, olayGetir, Olay, OlaySecenegi } from './olaylar.data';
+import {
+  OyunStateMachineService,
+  TIMING,
+  GAME_CONFIG,
+  TieBreakScore,
+} from './oyun-state-machine.service';
 
-// Zamanlayıcı süreleri (saniye)
+// Zamanlayıcı süreleri (saniye) - State Machine'den alınıyor
 const SURELER = {
-  OLAY_ACILISI: 15,   // Olayı okuma süresi
-  TARTISMA: 60,       // Öneri yapma süresi
-  OYLAMA: 45,         // Oylama süresi
-  TUR_SONU: 10,       // Sonuç gösterme süresi
+  OLAY_ACILISI: TIMING.EVENT_REVEAL / 1000,
+  TARTISMA: TIMING.PROPOSAL / 1000,
+  OYLAMA: TIMING.VOTING / 1000,
+  TUR_SONU: TIMING.RESULTS / 1000,
+  HESAPLAMA: TIMING.RESOLVE / 1000,
 };
 
 export interface OyuncuDurumu {
@@ -75,7 +82,10 @@ export class OyunService {
   // Kullanılan olaylar (tekrar gelmemesi için)
   private kullanilanOlaylar = new Map<string, string[]>();
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private stateMachine: OyunStateMachineService,
+  ) {}
 
   // Oyuncu bağlandığında
   async oyuncuBaglandi(toplulukId: string, oyuncuId: string): Promise<ToplulukDurumuVerisi | null> {
@@ -630,10 +640,11 @@ export class OyunService {
   }
 
   // Oyunu bitir
-  async oyunuBitir(toplulukId: string): Promise<{
+  async oyunuBitir(toplulukId: string, erkenBitis: boolean = false): Promise<{
     sonuc: OyunSonucu;
     kaynaklar: Kaynaklar;
     ozet: string;
+    carpan: number;
   }> {
     const oyunDurumu = await this.prisma.oyunDurumu.findUnique({
       where: { toplulukId },
@@ -644,21 +655,8 @@ export class OyunService {
         sonuc: OyunSonucu.COKTU,
         kaynaklar: { hazine: 0, refah: 0, istikrar: 0, altyapi: 0 },
         ozet: 'Oyun durumu bulunamadı.',
+        carpan: 0.5,
       };
-    }
-
-    // Sonucu hesapla
-    const ortalama = (oyunDurumu.refah + oyunDurumu.istikrar + oyunDurumu.altyapi) / 3;
-    let sonuc: OyunSonucu;
-
-    if (ortalama >= 70 && oyunDurumu.hazine >= 800) {
-      sonuc = OyunSonucu.PARLADI;
-    } else if (ortalama >= 50 && oyunDurumu.hazine >= 400) {
-      sonuc = OyunSonucu.HAYATTA_KALDI;
-    } else if (ortalama >= 30 || oyunDurumu.hazine >= 200) {
-      sonuc = OyunSonucu.ZORLANDI;
-    } else {
-      sonuc = OyunSonucu.COKTU;
     }
 
     const kaynaklar: Kaynaklar = {
@@ -668,13 +666,16 @@ export class OyunService {
       altyapi: oyunDurumu.altyapi,
     };
 
+    // State Machine ile sonucu hesapla (min-based formula)
+    const result = this.stateMachine.classifyGameResult(kaynaklar, erkenBitis);
+
     // Veritabanını güncelle
     await this.prisma.$transaction([
       this.prisma.oyunDurumu.update({
         where: { toplulukId },
         data: {
           asama: OyunAsamasi.SONUC,
-          sonuc,
+          sonuc: result.sonuc,
         },
       }),
       this.prisma.topluluk.update({
@@ -707,10 +708,49 @@ export class OyunService {
     this.kullanilanOlaylar.delete(toplulukId);
 
     return {
-      sonuc,
+      sonuc: result.sonuc,
       kaynaklar,
-      ozet: this.ozetOlustur(sonuc),
+      ozet: result.aciklama,
+      carpan: result.carpan,
     };
+  }
+
+  // Erken bitiş kontrolü (kaynak 0'a düştü mü?)
+  async erkenBitisKontrol(toplulukId: string): Promise<{ bittiMi: boolean; sebep?: string }> {
+    const oyunDurumu = await this.prisma.oyunDurumu.findUnique({
+      where: { toplulukId },
+    });
+
+    if (!oyunDurumu) return { bittiMi: false };
+
+    const kaynaklar = {
+      hazine: oyunDurumu.hazine,
+      refah: oyunDurumu.refah,
+      istikrar: oyunDurumu.istikrar,
+      altyapi: oyunDurumu.altyapi,
+    };
+
+    const result = this.stateMachine.checkEarlyGameEnd(kaynaklar);
+    return { bittiMi: result.shouldEnd, sebep: result.reason };
+  }
+
+  // Zafer anı kontrolü (kaynak 100'e ulaştı mı?)
+  async zaferAniKontrol(toplulukId: string): Promise<{ zaferMi: boolean; kaynak?: string }> {
+    const oyunDurumu = await this.prisma.oyunDurumu.findUnique({
+      where: { toplulukId },
+    });
+
+    if (!oyunDurumu) return { zaferMi: false };
+
+    const kaynaklar = {
+      hazine: oyunDurumu.hazine,
+      refah: oyunDurumu.refah,
+      istikrar: oyunDurumu.istikrar,
+      altyapi: oyunDurumu.altyapi,
+    };
+
+    const result = this.stateMachine.checkVictoryMoment(kaynaklar);
+    return { zaferMi: result.hasVictory, kaynak: result.resource };
   }
 
   // Mesaj gönder
@@ -742,15 +782,49 @@ export class OyunService {
   private ozetOlustur(sonuc: OyunSonucu): string {
     switch (sonuc) {
       case OyunSonucu.PARLADI:
-        return 'Topluluk birlik içinde çalışarak parlak bir gelecek inşa etti. Kaynaklar yeterli, halk mutlu ve altyapı güçlü. Harika bir liderlik örneği!';
-      case OyunSonucu.HAYATTA_KALDI:
-        return 'Zorluklara rağmen topluluk ayakta kalmayı başardı. Her karar mükemmel olmasa da, topluluk bir arada kaldı ve geleceğe umutla bakıyor.';
-      case OyunSonucu.ZORLANDI:
-        return 'Topluluk ciddi zorluklarla karşılaştı. Bazı kararlar olumsuz sonuçlar doğurdu, ancak hala umut var. Daha dikkatli kararlar gerekiyor.';
+        return 'Topluluk birlik içinde çalışarak parlak bir gelecek inşa etti. Tüm kaynaklar 70 üzerinde! Mükemmel bir liderlik örneği!';
+      case OyunSonucu.GELISTI:
+        return 'Topluluk iyi yönetildi ve gelişme kaydetti. Dengeli kararlar toplumu güçlendirdi.';
+      case OyunSonucu.DURAGAN:
+        return 'Topluluk idare etti. Ne büyük bir başarı ne de başarısızlık. Orta düzeyde bir yönetim.';
+      case OyunSonucu.GERILEDI:
+        return 'Topluluk ciddi zorluklarla karşılaştı. Bazı kararlar olumsuz sonuçlar doğurdu, daha dikkatli kararlar gerekiyor.';
       case OyunSonucu.COKTU:
-        return 'Ne yazık ki topluluk ayakta kalamadı. Kaynaklar tükendi, halk mutsuz ve gelecek belirsiz. Belki bir dahaki sefere daha iyi kararlar alınır.';
+        return 'Ne yazık ki topluluk çöktü. Bir kaynak sıfıra düştü ve topluluk ayakta kalamadı.';
+      // Backward compatibility
+      case OyunSonucu.HAYATTA_KALDI:
+        return 'Zorluklara rağmen topluluk ayakta kalmayı başardı.';
+      case OyunSonucu.ZORLANDI:
+        return 'Topluluk ciddi zorluklarla karşılaştı.';
       default:
         return 'Oyun tamamlandı.';
     }
+  }
+
+  // Tie-breaker ile kazanan öneriyi seç
+  private kazananOneriyiSec(oneriler: Array<{
+    id: string;
+    evetOylari: number;
+    hazineEtki: number;
+    istikrarEtki: number;
+    olusturuldu: Date;
+  }>): string | null {
+    if (oneriler.length === 0) return null;
+
+    const tieBreakScores: TieBreakScore[] = oneriler.map(o => ({
+      proposalId: o.id,
+      voteCount: o.evetOylari,
+      hazineEtki: o.hazineEtki,
+      istikrarEtki: o.istikrarEtki,
+      timestamp: o.olusturuldu,
+      score: this.stateMachine.calculateTieBreakScore(
+        o.hazineEtki,
+        o.istikrarEtki,
+        o.olusturuldu,
+      ),
+    }));
+
+    const winner = this.stateMachine.selectWinningProposal(tieBreakScores);
+    return winner?.proposalId || null;
   }
 }

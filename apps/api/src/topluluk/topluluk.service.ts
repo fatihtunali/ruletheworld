@@ -9,19 +9,22 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ToplulukOlusturDto } from './dto/topluluk.dto';
 import { ToplulukDurumu, UyeRolu } from '@prisma/client';
 import { BotService, BotKisilik } from '../bot/bot.service';
-
-// Otomatik bot ekleme için bekleme süreleri (ms)
-const BOT_BEKLEME_SURESI = 30000; // 30 saniye
-const BOT_EKLEME_ARALIGI = 5000; // Her 5 saniyede bir bot ekle
+import {
+  OyunStateMachineService,
+  TIMING,
+  GAME_CONFIG,
+} from '../oyun/oyun-state-machine.service';
 
 @Injectable()
 export class ToplulukService {
   private readonly logger = new Logger(ToplulukService.name);
   private bekleyenLobiler = new Map<string, NodeJS.Timeout>();
+  private countdownTimers = new Map<string, NodeJS.Timeout>();
 
   constructor(
     private prisma: PrismaService,
     private botService: BotService,
+    private stateMachine: OyunStateMachineService,
   ) {}
 
   // Rastgele 6 haneli kod oluştur
@@ -224,18 +227,206 @@ export class ToplulukService {
     };
   }
 
-  // Bot otomatik ekleme zamanlayıcısını başlat
+  // ==================== STATE TRANSITIONS ====================
+
+  /**
+   * Update lobby state based on player count
+   */
+  async durumGuncelle(toplulukId: string): Promise<ToplulukDurumu> {
+    const topluluk = await this.prisma.topluluk.findUnique({
+      where: { id: toplulukId },
+      include: {
+        uyeler: { where: { durum: 'AKTIF' } },
+      },
+    });
+
+    if (!topluluk) return ToplulukDurumu.LOBI;
+
+    const oyuncuSayisi = topluluk.uyeler.length;
+    let yeniDurum = topluluk.durum;
+
+    // State transitions based on player count
+    if (topluluk.durum === ToplulukDurumu.LOBI || topluluk.durum === ToplulukDurumu.BEKLEME) {
+      if (this.stateMachine.canTransitionToReady(oyuncuSayisi)) {
+        yeniDurum = ToplulukDurumu.HAZIR;
+        this.logger.log(`Topluluk ${toplulukId}: BEKLEME -> HAZIR (${oyuncuSayisi} oyuncu)`);
+      } else {
+        yeniDurum = ToplulukDurumu.BEKLEME;
+      }
+    } else if (topluluk.durum === ToplulukDurumu.HAZIR) {
+      if (this.stateMachine.shouldTransitionToWaiting(oyuncuSayisi)) {
+        yeniDurum = ToplulukDurumu.BEKLEME;
+        this.logger.log(`Topluluk ${toplulukId}: HAZIR -> BEKLEME (${oyuncuSayisi} oyuncu)`);
+      }
+    }
+
+    // Update if changed
+    if (yeniDurum !== topluluk.durum) {
+      await this.prisma.topluluk.update({
+        where: { id: toplulukId },
+        data: { durum: yeniDurum },
+      });
+    }
+
+    return yeniDurum;
+  }
+
+  /**
+   * Start countdown timer (host clicked start)
+   */
+  async countdownBaslat(toplulukId: string, oyuncuId: string): Promise<{ basarili: boolean; mesaj: string }> {
+    const topluluk = await this.prisma.topluluk.findUnique({
+      where: { id: toplulukId },
+      include: {
+        uyeler: { where: { durum: 'AKTIF' } },
+      },
+    });
+
+    if (!topluluk) {
+      throw new NotFoundException('Topluluk bulunamadı');
+    }
+
+    // Only host can start
+    const kurucu = topluluk.uyeler.find(u => u.rol === UyeRolu.KURUCU);
+    if (!kurucu || kurucu.oyuncuId !== oyuncuId) {
+      throw new ForbiddenException('Sadece topluluk kurucusu oyunu başlatabilir');
+    }
+
+    // Must be in HAZIR state
+    if (topluluk.durum !== ToplulukDurumu.HAZIR && topluluk.durum !== ToplulukDurumu.LOBI) {
+      throw new BadRequestException('Oyun şu anda başlatılamaz');
+    }
+
+    // Check minimum players
+    if (!this.stateMachine.canTransitionToReady(topluluk.uyeler.length)) {
+      throw new BadRequestException(`En az ${GAME_CONFIG.MIN_PLAYERS} oyuncu gerekli`);
+    }
+
+    // Transition to COUNTDOWN
+    await this.prisma.topluluk.update({
+      where: { id: toplulukId },
+      data: { durum: ToplulukDurumu.GERI_SAYIM },
+    });
+
+    this.logger.log(`Topluluk ${toplulukId}: Countdown başladı (${TIMING.COUNTDOWN / 1000}s)`);
+
+    // Set countdown timer
+    const timer = setTimeout(async () => {
+      await this.countdownBitti(toplulukId);
+    }, TIMING.COUNTDOWN);
+
+    this.countdownTimers.set(toplulukId, timer);
+
+    return { basarili: true, mesaj: `${TIMING.COUNTDOWN / 1000} saniye sonra oyun başlayacak` };
+  }
+
+  /**
+   * Cancel countdown (host clicked cancel)
+   */
+  async countdownIptal(toplulukId: string, oyuncuId: string): Promise<{ basarili: boolean }> {
+    const topluluk = await this.prisma.topluluk.findUnique({
+      where: { id: toplulukId },
+      include: {
+        uyeler: { where: { durum: 'AKTIF' } },
+      },
+    });
+
+    if (!topluluk) {
+      throw new NotFoundException('Topluluk bulunamadı');
+    }
+
+    // Only host can cancel
+    const kurucu = topluluk.uyeler.find(u => u.rol === UyeRolu.KURUCU);
+    if (!kurucu || kurucu.oyuncuId !== oyuncuId) {
+      throw new ForbiddenException('Sadece topluluk kurucusu iptal edebilir');
+    }
+
+    // Must be in COUNTDOWN state
+    if (topluluk.durum !== ToplulukDurumu.GERI_SAYIM) {
+      return { basarili: false };
+    }
+
+    // Clear timer
+    if (this.countdownTimers.has(toplulukId)) {
+      clearTimeout(this.countdownTimers.get(toplulukId));
+      this.countdownTimers.delete(toplulukId);
+    }
+
+    // Transition back to HAZIR
+    await this.prisma.topluluk.update({
+      where: { id: toplulukId },
+      data: { durum: ToplulukDurumu.HAZIR },
+    });
+
+    this.logger.log(`Topluluk ${toplulukId}: Countdown iptal edildi`);
+
+    return { basarili: true };
+  }
+
+  /**
+   * Countdown finished - fill bots if needed and start game
+   */
+  private async countdownBitti(toplulukId: string) {
+    this.countdownTimers.delete(toplulukId);
+
+    const topluluk = await this.prisma.topluluk.findUnique({
+      where: { id: toplulukId },
+      include: {
+        uyeler: { where: { durum: 'AKTIF' } },
+      },
+    });
+
+    if (!topluluk || topluluk.durum !== ToplulukDurumu.GERI_SAYIM) {
+      this.logger.warn(`Topluluk ${toplulukId}: Countdown bitti ama durum uygun değil`);
+      return;
+    }
+
+    const oyuncuSayisi = topluluk.uyeler.length;
+
+    // If not enough players, fill with bots
+    if (oyuncuSayisi < GAME_CONFIG.MIN_PLAYERS) {
+      await this.prisma.topluluk.update({
+        where: { id: toplulukId },
+        data: { durum: ToplulukDurumu.BOT_DOLDURMA },
+      });
+
+      this.logger.log(`Topluluk ${toplulukId}: BOT_DOLDURMA - ${GAME_CONFIG.MIN_PLAYERS - oyuncuSayisi} bot eklenecek`);
+      await this.botlariEkle(toplulukId);
+    }
+
+    // Start the game
+    await this.oyunuBaslat(toplulukId);
+  }
+
+  /**
+   * Start the actual game
+   */
+  private async oyunuBaslat(toplulukId: string) {
+    await this.prisma.topluluk.update({
+      where: { id: toplulukId },
+      data: { durum: ToplulukDurumu.DEVAM_EDIYOR },
+    });
+
+    this.logger.log(`Topluluk ${toplulukId}: Oyun başladı!`);
+
+    // TODO: Create game state, start first round
+    // This will be handled by OyunService
+  }
+
+  // ==================== BOT MANAGEMENT ====================
+
+  // Bot otomatik ekleme zamanlayıcısını başlat (lobi oluşturulduğunda)
   async botZamanlayicisiBaslat(toplulukId: string) {
     // Önceki zamanlayıcı varsa iptal et
     if (this.bekleyenLobiler.has(toplulukId)) {
       clearTimeout(this.bekleyenLobiler.get(toplulukId));
     }
 
-    this.logger.log(`Topluluk ${toplulukId} için bot zamanlayıcısı başlatıldı (${BOT_BEKLEME_SURESI / 1000}s)`);
+    this.logger.log(`Topluluk ${toplulukId} için bot zamanlayıcısı başlatıldı (${TIMING.COUNTDOWN / 1000}s)`);
 
     const timeout = setTimeout(async () => {
       await this.botlariEkle(toplulukId);
-    }, BOT_BEKLEME_SURESI);
+    }, TIMING.COUNTDOWN);
 
     this.bekleyenLobiler.set(toplulukId, timeout);
   }
@@ -250,7 +441,7 @@ export class ToplulukService {
   }
 
   // Lobiye bot ekle (minimum oyuncu sayısına ulaşana kadar)
-  async botlariEkle(toplulukId: string, minOyuncu: number = 4) {
+  async botlariEkle(toplulukId: string, minOyuncu: number = GAME_CONFIG.MIN_PLAYERS) {
     const topluluk = await this.prisma.topluluk.findUnique({
       where: { id: toplulukId },
       include: {
@@ -263,8 +454,9 @@ export class ToplulukService {
       return;
     }
 
-    // Lobi durumunda değilse ekleme yapma
-    if (topluluk.durum !== ToplulukDurumu.LOBI) {
+    // Lobi veya bot doldurma durumunda değilse ekleme yapma
+    const allowedStates: ToplulukDurumu[] = [ToplulukDurumu.LOBI, ToplulukDurumu.BEKLEME, ToplulukDurumu.BOT_DOLDURMA];
+    if (!allowedStates.includes(topluluk.durum)) {
       this.logger.log(`Topluluk ${toplulukId} artık lobide değil, bot eklenmedi`);
       return;
     }
@@ -299,7 +491,7 @@ export class ToplulukService {
 
         // Kısa gecikme ekle (doğal görünmesi için)
         if (i < eklenecekBotSayisi - 1) {
-          await new Promise(resolve => setTimeout(resolve, BOT_EKLEME_ARALIGI));
+          await new Promise(resolve => setTimeout(resolve, TIMING.BOT_FILL_INTERVAL));
         }
       } catch (error) {
         this.logger.error(`Bot ekleme hatası: ${error.message}`);

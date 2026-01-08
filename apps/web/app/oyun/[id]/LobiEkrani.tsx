@@ -1,22 +1,52 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '../../../lib/store';
-import { useOyunStore } from '../../../lib/socket';
+import { useOyunStore, ToplulukDurumu } from '../../../lib/socket';
+
+// Constants from state machine
+const MIN_OYUNCU = 4;
+const MAX_OYUNCU = 8;
 
 export default function LobiEkrani() {
   const { oyuncu } = useAuthStore();
-  const { toplulukIsmi, oyuncular, hazirOl, oyunuBaslat } = useOyunStore();
+  const {
+    toplulukIsmi,
+    toplulukKodu,
+    durum,
+    oyuncular,
+    geriSayim,
+    hazirOl,
+    oyunuBaslat,
+    countdownBaslat,
+    countdownIptal,
+  } = useOyunStore();
   const [kopyalandi, setKopyalandi] = useState(false);
+  const [localCountdown, setLocalCountdown] = useState<number | null>(null);
 
   const benimDurumum = oyuncular.find((o) => o.id === oyuncu?.id);
   const benKurucuMuyum = benimDurumum?.rol === 'KURUCU';
   const hazirOyuncuSayisi = oyuncular.filter((o) => o.hazir).length;
-  const minOyuncu = 4;
-  const baslayabilir = oyuncular.length >= minOyuncu && hazirOyuncuSayisi === oyuncular.length;
+  const baslayabilir = oyuncular.length >= MIN_OYUNCU && hazirOyuncuSayisi === oyuncular.length;
 
-  const davetKodu = oyuncular.length > 0 ? 'ABC123' : ''; // TODO: Get from server
+  // Local countdown timer
+  useEffect(() => {
+    if (geriSayim !== null) {
+      setLocalCountdown(geriSayim);
+      const interval = setInterval(() => {
+        setLocalCountdown((prev) => {
+          if (prev === null || prev <= 0) return 0;
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setLocalCountdown(null);
+    }
+  }, [geriSayim]);
+
+  const davetKodu = toplulukKodu || '------';
 
   const kodKopyala = () => {
     navigator.clipboard.writeText(davetKodu);
@@ -37,7 +67,9 @@ export default function LobiEkrani() {
             </Link>
             <div>
               <h1 className="text-xl font-bold text-white">{toplulukIsmi || 'Oyun Lobisi'}</h1>
-              <p className="text-sm text-gray-400">Oyuncular toplanıyor...</p>
+              <p className="text-sm text-gray-400">
+                {getDurumMetni(durum, oyuncular.length, MIN_OYUNCU)}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -94,47 +126,48 @@ export default function LobiEkrani() {
             </div>
           </div>
 
+          {/* Geri Sayım Göstergesi */}
+          {(durum === 'GERI_SAYIM' || durum === 'BOT_DOLDURMA') && (
+            <div className="bg-primary-500/20 border border-primary-500/50 rounded-2xl p-6 mb-6">
+              <div className="text-center">
+                {durum === 'GERI_SAYIM' && (
+                  <>
+                    <div className="text-6xl font-bold text-primary-400 mb-2">
+                      {localCountdown !== null ? localCountdown : '--'}
+                    </div>
+                    <p className="text-primary-300">Oyun başlıyor...</p>
+                    {benKurucuMuyum && (
+                      <button
+                        onClick={countdownIptal}
+                        className="mt-4 px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                      >
+                        İptal Et
+                      </button>
+                    )}
+                  </>
+                )}
+                {durum === 'BOT_DOLDURMA' && (
+                  <>
+                    <div className="animate-pulse text-4xl mb-2">🤖</div>
+                    <p className="text-primary-300">Bot oyuncular ekleniyor...</p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Oyuncular Listesi */}
           <div className="bg-gray-800 rounded-2xl p-6 mb-6">
             <h3 className="text-lg font-semibold text-white mb-4">
-              Oyuncular ({oyuncular.length}/{minOyuncu} minimum)
+              Oyuncular ({oyuncular.length}/{MIN_OYUNCU} minimum)
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {oyuncular.map((o) => (
-                <div
-                  key={o.id}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    o.hazir
-                      ? 'bg-green-500/10 border-green-500'
-                      : 'bg-gray-700/50 border-gray-600'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-medium ${
-                        o.hazir ? 'bg-green-500 text-white' : 'bg-gray-600 text-gray-300'
-                      }`}
-                    >
-                      {o.kullaniciAdi?.[0]?.toUpperCase() || '?'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-medium truncate">{o.kullaniciAdi}</p>
-                      <p className="text-xs text-gray-400">
-                        {o.rol === 'KURUCU' ? 'Kurucu' : 'Oyuncu'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${o.bagli ? 'bg-green-400' : 'bg-gray-500'}`} />
-                    <span className="text-xs text-gray-400">
-                      {o.hazir ? 'Hazır' : 'Bekliyor'}
-                    </span>
-                  </div>
-                </div>
+                <OyuncuKarti key={o.id} oyuncu={o} />
               ))}
 
               {/* Boş slotlar */}
-              {Array.from({ length: Math.max(0, minOyuncu - oyuncular.length) }).map((_, i) => (
+              {Array.from({ length: Math.max(0, MIN_OYUNCU - oyuncular.length) }).map((_, i) => (
                 <div
                   key={`empty-${i}`}
                   className="p-4 rounded-xl border-2 border-dashed border-gray-600 flex items-center justify-center"
@@ -153,62 +186,125 @@ export default function LobiEkrani() {
           </div>
 
           {/* Hazırlık Durumu */}
-          <div className="bg-gray-800 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-white">Hazırlık Durumu</h3>
-                <p className="text-gray-400 text-sm">
-                  {hazirOyuncuSayisi}/{oyuncular.length} oyuncu hazır
+          {durum !== 'GERI_SAYIM' && durum !== 'BOT_DOLDURMA' && (
+            <div className="bg-gray-800 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Hazırlık Durumu</h3>
+                  <p className="text-gray-400 text-sm">
+                    {hazirOyuncuSayisi}/{oyuncular.length} oyuncu hazır
+                  </p>
+                </div>
+                <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 transition-all duration-300"
+                    style={{ width: `${(hazirOyuncuSayisi / Math.max(oyuncular.length, 1)) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                {!benimDurumum?.hazir ? (
+                  <button
+                    onClick={hazirOl}
+                    className="flex-1 py-4 bg-green-500 hover:bg-green-600 text-white font-medium rounded-xl transition-colors"
+                  >
+                    Hazırım
+                  </button>
+                ) : (
+                  <button
+                    onClick={hazirOl}
+                    className="flex-1 py-4 bg-gray-600 hover:bg-gray-500 text-white font-medium rounded-xl transition-colors"
+                  >
+                    Hazır Değilim
+                  </button>
+                )}
+
+                {benKurucuMuyum && (
+                  <button
+                    onClick={baslayabilir ? countdownBaslat : undefined}
+                    disabled={!baslayabilir}
+                    className={`flex-1 py-4 font-medium rounded-xl transition-colors ${
+                      baslayabilir
+                        ? 'bg-primary-500 hover:bg-primary-600 text-white'
+                        : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {baslayabilir ? 'Geri Sayımı Başlat' : `${MIN_OYUNCU - oyuncular.length} oyuncu daha gerekli`}
+                  </button>
+                )}
+              </div>
+
+              {!benKurucuMuyum && (
+                <p className="text-center text-gray-500 text-sm mt-4">
+                  Kurucu oyunu başlatana kadar bekleyin
                 </p>
-              </div>
-              <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-green-500 transition-all duration-300"
-                  style={{ width: `${(hazirOyuncuSayisi / Math.max(oyuncular.length, 1)) * 100}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              {!benimDurumum?.hazir ? (
-                <button
-                  onClick={hazirOl}
-                  className="flex-1 py-4 bg-green-500 hover:bg-green-600 text-white font-medium rounded-xl transition-colors"
-                >
-                  Hazırım
-                </button>
-              ) : (
-                <button
-                  onClick={hazirOl}
-                  className="flex-1 py-4 bg-gray-600 hover:bg-gray-500 text-white font-medium rounded-xl transition-colors"
-                >
-                  Hazır Değilim
-                </button>
-              )}
-
-              {benKurucuMuyum && (
-                <button
-                  onClick={oyunuBaslat}
-                  disabled={!baslayabilir}
-                  className={`flex-1 py-4 font-medium rounded-xl transition-colors ${
-                    baslayabilir
-                      ? 'bg-primary-500 hover:bg-primary-600 text-white'
-                      : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  {baslayabilir ? 'Oyunu Başlat' : `${minOyuncu - oyuncular.length} oyuncu daha gerekli`}
-                </button>
               )}
             </div>
-
-            {!benKurucuMuyum && (
-              <p className="text-center text-gray-500 text-sm mt-4">
-                Kurucu oyunu başlatana kadar bekleyin
-              </p>
-            )}
-          </div>
+          )}
         </div>
       </main>
+    </div>
+  );
+}
+
+// Helper function for status text
+function getDurumMetni(durum: ToplulukDurumu, oyuncuSayisi: number, minOyuncu: number): string {
+  switch (durum) {
+    case 'BEKLEME':
+      return `Oyuncular bekleniyor (${oyuncuSayisi}/${minOyuncu})`;
+    case 'HAZIR':
+      return 'Herkes hazır! Başlatmak için bekliyor...';
+    case 'GERI_SAYIM':
+      return 'Oyun başlıyor!';
+    case 'BOT_DOLDURMA':
+      return 'Bot oyuncular ekleniyor...';
+    case 'LOBI':
+      return 'Oyuncular toplanıyor...';
+    case 'DEVAM_EDIYOR':
+      return 'Oyun devam ediyor';
+    case 'TAMAMLANDI':
+      return 'Oyun tamamlandı';
+    case 'TERK_EDILDI':
+      return 'Oyun terk edildi';
+    default:
+      return 'Yükleniyor...';
+  }
+}
+
+// Player card component
+function OyuncuKarti({ oyuncu }: { oyuncu: { id: string; kullaniciAdi: string; rol: string; hazir: boolean; bagli: boolean } }) {
+  const isBot = oyuncu.kullaniciAdi?.startsWith('Bot_');
+
+  return (
+    <div
+      className={`p-4 rounded-xl border-2 transition-all ${
+        oyuncu.hazir
+          ? 'bg-green-500/10 border-green-500'
+          : 'bg-gray-700/50 border-gray-600'
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-medium ${
+            oyuncu.hazir ? 'bg-green-500 text-white' : 'bg-gray-600 text-gray-300'
+          }`}
+        >
+          {isBot ? '🤖' : oyuncu.kullaniciAdi?.[0]?.toUpperCase() || '?'}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-medium truncate">{oyuncu.kullaniciAdi}</p>
+          <p className="text-xs text-gray-400">
+            {oyuncu.rol === 'KURUCU' ? 'Kurucu' : isBot ? 'Bot' : 'Oyuncu'}
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <div className={`w-2 h-2 rounded-full ${oyuncu.bagli ? 'bg-green-400' : 'bg-gray-500'}`} />
+        <span className="text-xs text-gray-400">
+          {oyuncu.hazir ? 'Hazır' : 'Bekliyor'}
+        </span>
+      </div>
     </div>
   );
 }
