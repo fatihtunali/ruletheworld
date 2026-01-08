@@ -1,5 +1,4 @@
-// Error Tracking Utility
-// Sentry entegrasyonu icin hazir - DSN ayarlaninca aktif olur
+import * as Sentry from '@sentry/nextjs';
 
 interface ErrorContext {
   component?: string;
@@ -10,94 +9,152 @@ interface ErrorContext {
 
 class ErrorTracker {
   private isInitialized = false;
-  private dsn: string | null = null;
 
-  init(dsn?: string) {
-    this.dsn = dsn || process.env.NEXT_PUBLIC_SENTRY_DSN || null;
-    this.isInitialized = !!this.dsn;
+  init() {
+    // Sentry is auto-initialized via sentry.client.config.ts
+    this.isInitialized = !!process.env.NEXT_PUBLIC_SENTRY_DSN;
 
     if (this.isInitialized) {
-      console.log('[ErrorTracker] Initialized with DSN');
-      // Sentry.init icin yer
+      console.log('[ErrorTracker] Sentry initialized');
     } else {
-      console.log('[ErrorTracker] Running in development mode (no DSN)');
+      console.log('[ErrorTracker] Running in development mode (no Sentry DSN)');
     }
   }
 
   captureException(error: Error, context?: ErrorContext) {
-    // Console'a hatayi yazdir
+    // Always log to console
     console.error('[ErrorTracker]', error.message, {
       stack: error.stack,
       ...context,
     });
 
-    // Sentry entegrasyonu aktifse gonder
-    if (this.isInitialized && this.dsn) {
-      // Sentry.captureException(error, { extra: context });
-      this.sendToBackend(error, context);
+    // Send to Sentry if initialized
+    if (this.isInitialized) {
+      Sentry.withScope((scope) => {
+        if (context?.component) {
+          scope.setTag('component', context.component);
+        }
+        if (context?.action) {
+          scope.setTag('action', context.action);
+        }
+        if (context?.extra) {
+          scope.setExtras(context.extra);
+        }
+        Sentry.captureException(error);
+      });
     }
   }
 
-  captureMessage(message: string, level: 'info' | 'warning' | 'error' = 'info', context?: ErrorContext) {
-    const logMethod = level === 'error' ? console.error : level === 'warning' ? console.warn : console.log;
+  captureMessage(
+    message: string,
+    level: 'info' | 'warning' | 'error' = 'info',
+    context?: ErrorContext
+  ) {
+    const logMethod =
+      level === 'error'
+        ? console.error
+        : level === 'warning'
+          ? console.warn
+          : console.log;
+
     logMethod(`[ErrorTracker] ${message}`, context);
 
-    if (this.isInitialized && this.dsn) {
-      // Sentry.captureMessage(message, level);
+    if (this.isInitialized) {
+      const sentryLevel =
+        level === 'error' ? 'error' : level === 'warning' ? 'warning' : 'info';
+
+      Sentry.withScope((scope) => {
+        if (context?.component) {
+          scope.setTag('component', context.component);
+        }
+        if (context?.action) {
+          scope.setTag('action', context.action);
+        }
+        if (context?.extra) {
+          scope.setExtras(context.extra);
+        }
+        Sentry.captureMessage(message, sentryLevel);
+      });
     }
   }
 
   setUser(user: { id: string; kullaniciAdi?: string; email?: string } | null) {
     if (this.isInitialized) {
-      // Sentry.setUser(user);
+      if (user) {
+        Sentry.setUser({
+          id: user.id,
+          username: user.kullaniciAdi,
+          email: user.email,
+        });
+      } else {
+        Sentry.setUser(null);
+      }
       console.log('[ErrorTracker] User set:', user?.id);
     }
   }
 
-  private async sendToBackend(error: Error, context?: ErrorContext) {
-    try {
-      // Backend'e hata gonder (opsiyonel)
-      await fetch('/api/errors', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: error.message,
-          stack: error.stack,
-          context,
-          timestamp: new Date().toISOString(),
-          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
-          url: typeof window !== 'undefined' ? window.location.href : null,
-        }),
+  // Add custom breadcrumb
+  addBreadcrumb(
+    message: string,
+    category: string,
+    data?: Record<string, unknown>
+  ) {
+    if (this.isInitialized) {
+      Sentry.addBreadcrumb({
+        message,
+        category,
+        data,
+        level: 'info',
       });
-    } catch {
-      // Sessizce basarisiz ol
     }
+  }
+
+  // Set custom tag
+  setTag(key: string, value: string) {
+    if (this.isInitialized) {
+      Sentry.setTag(key, value);
+    }
+  }
+
+  // Start a performance transaction
+  startTransaction(name: string, op: string) {
+    if (this.isInitialized) {
+      return Sentry.startInactiveSpan({ name, op });
+    }
+    return null;
   }
 }
 
 export const errorTracker = new ErrorTracker();
 
-// Global error handler
-if (typeof window !== 'undefined') {
-  window.onerror = (message, source, lineno, colno, error) => {
-    errorTracker.captureException(error || new Error(String(message)), {
-      component: 'window.onerror',
-      extra: { source, lineno, colno },
-    });
-  };
-
-  window.onunhandledrejection = (event) => {
-    errorTracker.captureException(
-      event.reason instanceof Error ? event.reason : new Error(String(event.reason)),
-      { component: 'unhandledrejection' }
-    );
-  };
-}
-
-// React Error Boundary icin helper
-export function captureReactError(error: Error, errorInfo: { componentStack: string }) {
+// React Error Boundary helper
+export function captureReactError(
+  error: Error,
+  errorInfo: { componentStack: string }
+) {
   errorTracker.captureException(error, {
     component: 'ErrorBoundary',
     extra: { componentStack: errorInfo.componentStack },
+  });
+}
+
+// API error helper
+export function captureApiError(error: Error, endpoint: string, method: string) {
+  errorTracker.captureException(error, {
+    component: 'API',
+    action: `${method} ${endpoint}`,
+  });
+}
+
+// Game error helper
+export function captureGameError(
+  error: Error,
+  gameId: string,
+  action: string
+) {
+  errorTracker.captureException(error, {
+    component: 'Game',
+    action,
+    extra: { gameId },
   });
 }
