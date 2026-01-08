@@ -16,6 +16,7 @@ import { CacheModuleConfig } from './cache/cache.module';
 import { EmailModule } from './email/email.module';
 import { ArkadaslikModule } from './arkadaslik/arkadaslik.module';
 import { SiralamaModule } from './siralama/siralama.module';
+import { BotModule } from './bot/bot.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -81,6 +82,9 @@ import configuration from './config/configuration';
 
     // Siralama (Leaderboard)
     SiralamaModule,
+
+    // Bot Oyuncular
+    BotModule,
   ],
   controllers: [],
   providers: [

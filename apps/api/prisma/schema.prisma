@@ -43,6 +43,10 @@ model Oyuncu {
   sezonPuani        Int      @default(0)
   haftalikPuan      Int      @default(0)
 
+  // Bot özellikleri
+  botMu             Boolean  @default(false)
+  botKisilik        String?  // DENGELI, EKONOMIST, POPULIST, vb.
+
   // İlişkiler
   uyelikler             ToplulukUyesi[]
   oneriler              Oneri[]
