@@ -2,7 +2,6 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ToplulukService } from '../topluluk/topluluk.service';
 import { EslesmeDurumu, OyunModu } from '@prisma/client';
-import { Cron, CronExpression } from '@nestjs/schedule';
 
 export interface EslesmeKuyrugaGirDto {
   oyunModu?: OyunModu;
@@ -179,8 +178,7 @@ export class EslesmeService {
     };
   }
 
-  // Periyodik eşleştirme (her 5 saniye)
-  @Cron('*/5 * * * * *')
+  // Periyodik eşleştirme (her 5 saniye) - Bu metod kuyrugaGir'den çağrılır
   async eslestirmeYap(): Promise<void> {
     // Oyun modlarına göre grupla ve eşleştir
     const modlar = Object.values(OyunModu);
@@ -204,9 +202,6 @@ export class EslesmeService {
         { oncelikli: 'desc' },
         { olusturuldu: 'asc' },
       ],
-      include: {
-        // Oyuncu bilgisi için
-      },
     });
 
     if (bekleyenler.length < this.MIN_ESLESTIRME) {
@@ -222,9 +217,6 @@ export class EslesmeService {
       const ilkOyuncu = oyuncuIdleri[0];
       const topluluk = await this.toplulukService.toplulukOlustur(ilkOyuncu, {
         isim: `Eşleşme ${Date.now().toString(36).toUpperCase()}`,
-        gizliMi: true, // Eşleşme lobileri gizli
-        maxOyuncu: 8,
-        oyunModu,
       });
 
       // Diğer oyuncuları katıl
