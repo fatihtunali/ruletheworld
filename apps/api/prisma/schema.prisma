@@ -1,0 +1,656 @@
+// Prisma Schema - RuleTheWorld
+// Türkçe model ve alan isimleri
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ OYUNCULAR ============
+
+model Oyuncu {
+  id            String   @id @default(uuid())
+  kullaniciAdi  String   @unique
+  email         String   @unique
+  sifreHash     String
+
+  // Email dogrulama
+  emailDogrulandi   Boolean  @default(false)
+
+  // Rol ve durum
+  sistemRolu    SistemRolu   @default(KULLANICI)
+  hesapDurumu   HesapDurumu  @default(AKTIF)
+  banSebebi     String?
+  banBitisi     DateTime?
+
+  // İstatistikler
+  oynananOyunlar    Int      @default(0)
+  tamamlananOyunlar Int      @default(0)
+  yapilanOneriler   Int      @default(0)
+  verilenOylar      Int      @default(0)
+
+  // Zaman damgaları
+  olusturuldu   DateTime @default(now())
+  guncellendi   DateTime @updatedAt
+  sonAktiflik   DateTime @default(now())
+
+  // İlişkiler
+  uyelikler             ToplulukUyesi[]
+  oneriler              Oneri[]
+  oylar                 Oy[]
+  mesajlar              Mesaj[]
+  bildirimler           Bildirim[]
+  yenilemeTokenlari     YenilemeToken[]
+  sifreSifirlamalari    SifreSifirlama[]
+  alinanBanlar          Ban[]            @relation("BanlananOyuncu")
+  verilenBanlar         Ban[]            @relation("BanlayanYetkili")
+  moderasyonAksiyonlari Moderasyon[]
+  basarimlar            KazanilanBasarim[]
+  turnuvaKatilimlari    TurnuvaKatilimci[]
+  emailDogrulamalari    EmailDogrulama[]
+
+  @@index([sistemRolu])
+  @@index([hesapDurumu])
+  @@map("oyuncular")
+}
+
+// Ban geçmişi
+model Ban {
+  id            String      @id @default(uuid())
+  oyuncuId      String
+  yetkiliId     String
+  sebep         String
+  tip           BanTipi     @default(GECICI)
+  baslangic     DateTime    @default(now())
+  bitis         DateTime?
+  iptalEdildi   Boolean     @default(false)
+  iptalSebebi   String?
+
+  oyuncu        Oyuncu      @relation("BanlananOyuncu", fields: [oyuncuId], references: [id])
+  yetkili       Oyuncu      @relation("BanlayanYetkili", fields: [yetkiliId], references: [id])
+
+  @@index([oyuncuId])
+  @@index([yetkiliId])
+  @@map("banlar")
+}
+
+// Moderasyon logları
+model Moderasyon {
+  id            String          @id @default(uuid())
+  yetkiliId     String
+  aksiyon       ModeasyonTipi
+  hedefTip      String          // "oyuncu", "topluluk", "mesaj"
+  hedefId       String
+  detay         Json?
+  olusturuldu   DateTime        @default(now())
+
+  yetkili       Oyuncu          @relation(fields: [yetkiliId], references: [id])
+
+  @@index([yetkiliId])
+  @@index([hedefTip, hedefId])
+  @@map("moderasyon_loglari")
+}
+
+model YenilemeToken {
+  id          String    @id @default(uuid())
+  oyuncuId    String
+  tokenHash   String    @unique
+  sonlanma    DateTime
+  olusturuldu DateTime  @default(now())
+  iptalEdildi DateTime?
+
+  oyuncu      Oyuncu    @relation(fields: [oyuncuId], references: [id], onDelete: Cascade)
+
+  @@index([oyuncuId])
+  @@index([sonlanma])
+  @@map("yenileme_tokenlari")
+}
+
+model SifreSifirlama {
+  id          String    @id @default(uuid())
+  oyuncuId    String
+  tokenHash   String    @unique
+  sonlanma    DateTime
+  kullanildi  Boolean   @default(false)
+  olusturuldu DateTime  @default(now())
+
+  oyuncu      Oyuncu    @relation(fields: [oyuncuId], references: [id], onDelete: Cascade)
+
+  @@index([oyuncuId])
+  @@index([sonlanma])
+  @@map("sifre_sifirlamalari")
+}
+
+// Email dogrulama tokenlari
+model EmailDogrulama {
+  id          String    @id @default(uuid())
+  oyuncuId    String
+  tokenHash   String    @unique
+  sonlanma    DateTime
+  kullanildi  Boolean   @default(false)
+  olusturuldu DateTime  @default(now())
+
+  oyuncu      Oyuncu    @relation(fields: [oyuncuId], references: [id], onDelete: Cascade)
+
+  @@index([oyuncuId])
+  @@index([sonlanma])
+  @@map("email_dogrulamalari")
+}
+
+// ============ TOPLULUKLAR ============
+
+model Topluluk {
+  id          String          @id @default(uuid())
+  isim        String
+  durum       ToplulukDurumu  @default(LOBI)
+  maxOyuncu   Int             @default(8)
+  minOyuncu   Int             @default(4)
+  gizliMi     Boolean         @default(false)
+  davetKodu   String?         @unique
+  kurucuId    String
+
+  olusturuldu DateTime        @default(now())
+  guncellendi DateTime        @updatedAt
+  basladiAt   DateTime?
+  bittiAt     DateTime?
+
+  // İlişkiler
+  uyeler      ToplulukUyesi[]
+  oyunDurumu  OyunDurumu?
+  turlar      Tur[]
+  mesajlar    Mesaj[]
+  oyunOlaylari OyunOlayi[]
+
+  @@index([durum])
+  @@index([gizliMi, durum])
+  @@map("topluluklar")
+}
+
+model ToplulukUyesi {
+  id           String       @id @default(uuid())
+  oyuncuId     String
+  toplulukId   String
+  rol          UyeRolu      @default(OYUNCU)
+  durum        UyeDurumu    @default(AKTIF)
+  afkTurSayisi Int          @default(0)
+  katildiAt    DateTime     @default(now())
+  ayrildiAt    DateTime?
+
+  oyuncu       Oyuncu       @relation(fields: [oyuncuId], references: [id])
+  topluluk     Topluluk     @relation(fields: [toplulukId], references: [id], onDelete: Cascade)
+
+  @@unique([oyuncuId, toplulukId])
+  @@index([toplulukId, durum])
+  @@map("topluluk_uyeleri")
+}
+
+// ============ OYUN DURUMU ============
+
+model OyunDurumu {
+  id              String      @id @default(uuid())
+  toplulukId      String      @unique
+
+  // Mevcut durum
+  asama           OyunAsamasi @default(LOBI)
+  mevcutTur       Int         @default(0)
+  toplamTur       Int         @default(6)
+  asamaBitisAt    DateTime?
+
+  // Kaynaklar
+  hazine          Int         @default(1000)
+  refah           Int         @default(60)
+  istikrar        Int         @default(60)
+  altyapi         Int         @default(50)
+
+  // Topluluk sağlığı
+  toplulukSagligi Int         @default(60)
+
+  // Sonuç
+  sonuc           OyunSonucu?
+
+  topluluk        Topluluk    @relation(fields: [toplulukId], references: [id], onDelete: Cascade)
+
+  @@map("oyun_durumlari")
+}
+
+model Tur {
+  id          String   @id @default(uuid())
+  toplulukId  String
+  turNumarasi Int
+
+  // Tur başında kaynak snapshot'ı
+  basHazine       Int
+  basRefah        Int
+  basIstikrar     Int
+  basAltyapi      Int
+
+  // Olay bilgisi
+  olayId      String?  // Olay kataloğuna referans
+  olayVerisi  Json?    // Olay verisi snapshot
+
+  // Sonuç
+  kazananOneriId   String?
+  uygulananSonuc   Json?
+
+  basladiAt   DateTime @default(now())
+  bittiAt     DateTime?
+
+  topluluk    Topluluk @relation(fields: [toplulukId], references: [id], onDelete: Cascade)
+  oneriler    Oneri[]
+  olaylar     OyunOlayi[]
+
+  @@unique([toplulukId, turNumarasi])
+  @@index([toplulukId])
+  @@map("turlar")
+}
+
+// ============ OYUN TEKRARI ============
+
+model OyunOlayi {
+  id          String        @id @default(uuid())
+  toplulukId  String
+  turId       String?
+  turNumarasi Int?
+
+  tip         OlayTipi
+  veri        Json          // Olay detayları
+
+  // Kaynak durumu snapshot'ı
+  hazine      Int?
+  refah       Int?
+  istikrar    Int?
+  altyapi     Int?
+
+  olusturuldu DateTime      @default(now())
+
+  topluluk    Topluluk      @relation(fields: [toplulukId], references: [id], onDelete: Cascade)
+  tur         Tur?          @relation(fields: [turId], references: [id], onDelete: Cascade)
+
+  @@index([toplulukId, olusturuldu])
+  @@index([turId])
+  @@map("oyun_olaylari")
+}
+
+enum OlayTipi {
+  OYUN_BASLADI
+  TUR_BASLADI
+  OLAY_ACILDI
+  ONERI_YAPILDI
+  OY_KULLANILDI
+  OYLAMA_TAMAMLANDI
+  TUR_BITTI
+  KAYNAK_DEGISTI
+  OYUN_BITTI
+  OYUNCU_KATILDI
+  OYUNCU_AYRILDI
+
+  @@map("olay_tipi")
+}
+
+// ============ ÖNERİLER & OYLAMA ============
+
+model Oneri {
+  id          String         @id @default(uuid())
+  turId       String
+  onericiId   String
+
+  baslik      String
+  aciklama    String
+  eylemler    Json           // OneriEylemi[]
+
+  durum       OneriDurumu    @default(OYLAMADA)
+
+  // Oy sayımları (hız için denormalize)
+  evetOylari    Int          @default(0)
+  hayirOylari   Int          @default(0)
+  cekimserOylar Int          @default(0)
+
+  olusturuldu DateTime       @default(now())
+  sonuclandi  DateTime?
+
+  tur         Tur            @relation(fields: [turId], references: [id], onDelete: Cascade)
+  onerici     Oyuncu         @relation(fields: [onericiId], references: [id])
+  oylar       Oy[]
+
+  @@index([turId, durum])
+  @@map("oneriler")
+}
+
+model Oy {
+  id         String     @id @default(uuid())
+  oneriId    String
+  oyuncuId   String
+  secim      OySecimi
+  gerekce    String?
+  otomatikMi Boolean    @default(false)
+  oylandiAt  DateTime   @default(now())
+
+  oneri      Oneri      @relation(fields: [oneriId], references: [id], onDelete: Cascade)
+  oyuncu     Oyuncu     @relation(fields: [oyuncuId], references: [id])
+
+  @@unique([oneriId, oyuncuId])
+  @@map("oylar")
+}
+
+// ============ BİLDİRİMLER ============
+
+model Bildirim {
+  id            String         @id @default(uuid())
+  oyuncuId      String
+  tip           BildirimTipi
+  baslik        String
+  icerik        String
+  link          String?
+  okundu        Boolean        @default(false)
+  olusturuldu   DateTime       @default(now())
+
+  oyuncu        Oyuncu         @relation(fields: [oyuncuId], references: [id], onDelete: Cascade)
+
+  @@index([oyuncuId, okundu])
+  @@index([olusturuldu])
+  @@map("bildirimler")
+}
+
+// ============ SOHBET ============
+
+model Mesaj {
+  id          String   @id @default(uuid())
+  toplulukId  String
+  oyuncuId    String
+  icerik      String
+
+  // Opsiyonel bağlam
+  turNumarasi Int?
+  oneriId     String?
+
+  olusturuldu DateTime @default(now())
+
+  topluluk    Topluluk @relation(fields: [toplulukId], references: [id], onDelete: Cascade)
+  oyuncu      Oyuncu   @relation(fields: [oyuncuId], references: [id])
+
+  @@index([toplulukId, olusturuldu])
+  @@map("mesajlar")
+}
+
+// ============ ENUM'LAR ============
+
+enum ToplulukDurumu {
+  LOBI
+  DEVAM_EDIYOR
+  TAMAMLANDI
+  TERK_EDILDI
+
+  @@map("topluluk_durumu")
+}
+
+enum UyeRolu {
+  KURUCU
+  OYUNCU
+
+  @@map("uye_rolu")
+}
+
+enum UyeDurumu {
+  AKTIF
+  AFK
+  AYRILDI
+  ATILDI
+
+  @@map("uye_durumu")
+}
+
+enum OyunAsamasi {
+  LOBI
+  TUR_BASI
+  OLAY_ACILISI
+  TARTISMA
+  OYLAMA
+  TUR_SONU
+  OYUN_SONU
+  SONUC
+
+  @@map("oyun_asamasi")
+}
+
+enum OyunSonucu {
+  PARLADI
+  HAYATTA_KALDI
+  ZORLANDI
+  COKTU
+
+  @@map("oyun_sonucu")
+}
+
+enum OneriDurumu {
+  OYLAMADA
+  GECTI
+  REDDEDILDI
+  SURESI_DOLDU
+
+  @@map("oneri_durumu")
+}
+
+enum OySecimi {
+  EVET
+  HAYIR
+  CEKIMSER
+
+  @@map("oy_secimi")
+}
+
+// ============ YETKİLENDİRME ENUM'LARI ============
+
+enum SistemRolu {
+  ADMIN
+  MODERATOR
+  KULLANICI
+
+  @@map("sistem_rolu")
+}
+
+enum HesapDurumu {
+  AKTIF
+  BANLANDI
+  ASKIDA
+  SILINDI
+
+  @@map("hesap_durumu")
+}
+
+enum BanTipi {
+  GECICI
+  KALICI
+
+  @@map("ban_tipi")
+}
+
+enum ModeasyonTipi {
+  KULLANICI_BAN
+  KULLANICI_UNBAN
+  KULLANICI_ASKIYA_AL
+  KULLANICI_AKTIFLES
+  TOPLULUK_SIL
+  TOPLULUK_DONDUR
+  MESAJ_SIL
+  ROL_DEGISTIR
+
+  @@map("moderasyon_tipi")
+}
+
+enum BildirimTipi {
+  OYUN_BASLADI
+  OYUN_BITTI
+  TUR_BASLADI
+  OYLAMA_BASLADI
+  ONERI_KABUL_EDILDI
+  ONERI_REDDEDILDI
+  TOPLULUGA_DAVET
+  TOPLULUKTAN_ATILDI
+  YENI_MESAJ
+  SISTEM
+  BASARIM_KAZANILDI
+
+  @@map("bildirim_tipi")
+}
+
+// ============ BAŞARIMLAR ============
+
+model Basarim {
+  id          String        @id @default(uuid())
+  kod         String        @unique  // Unique identifier like "FIRST_WIN", "VOTE_100"
+  isim        String
+  aciklama    String
+  ikon        String        // Emoji or icon name
+  kategori    BasarimKategori
+  nadirlik    BasarimNadirlik @default(YAYGIN)
+
+  // Koşullar
+  kosulTipi   String        // "oyun_sayisi", "oylama_sayisi", "oneri_sayisi", etc.
+  kosulDeger  Int           // Hedef değer
+
+  gizliMi     Boolean       @default(false)  // Sürpriz başarımlar
+  aktifMi     Boolean       @default(true)
+
+  olusturuldu DateTime      @default(now())
+
+  kazananlar  KazanilanBasarim[]
+
+  @@index([kategori])
+  @@index([aktifMi])
+  @@map("basarimlar")
+}
+
+model KazanilanBasarim {
+  id          String    @id @default(uuid())
+  oyuncuId    String
+  basarimId   String
+  kazanildiAt DateTime  @default(now())
+
+  oyuncu      Oyuncu    @relation(fields: [oyuncuId], references: [id], onDelete: Cascade)
+  basarim     Basarim   @relation(fields: [basarimId], references: [id], onDelete: Cascade)
+
+  @@unique([oyuncuId, basarimId])
+  @@index([oyuncuId])
+  @@index([basarimId])
+  @@map("kazanilan_basarimlar")
+}
+
+enum BasarimKategori {
+  OYUN        // Oyun tamamlama ile ilgili
+  OYLAMA      // Oylama ile ilgili
+  ONERI       // Öneri yapma ile ilgili
+  SOSYAL      // Sosyal aktiviteler
+  LIDERLIK    // Liderlik başarımları
+  OZEL        // Özel/nadir başarımlar
+
+  @@map("basarim_kategori")
+}
+
+enum BasarimNadirlik {
+  YAYGIN      // Common - %50+ oyuncuda
+  SEYREK      // Uncommon - %20-50
+  NADIR       // Rare - %5-20
+  EFSANEVI    // Legendary - %1-5
+  MITIK       // Mythic - <%1
+
+  @@map("basarim_nadirlik")
+}
+
+// ============ TURNUVALAR ============
+
+model Turnuva {
+  id          String        @id @default(uuid())
+  isim        String
+  aciklama    String?
+
+  // Turnuva ayarlari
+  maxKatilimci    Int       @default(16)
+  minKatilimci    Int       @default(4)
+  oyunBasinaOyuncu Int      @default(4)  // Her macta kac oyuncu
+
+  durum       TurnuvaDurumu @default(KAYIT_ACIK)
+
+  // Tarihler
+  kayitBaslangic  DateTime  @default(now())
+  kayitBitis      DateTime
+  baslamaZamani   DateTime?
+  bitisZamani     DateTime?
+
+  olusturanId     String
+  olusturuldu     DateTime  @default(now())
+  guncellendi     DateTime  @updatedAt
+
+  // Iliskiler
+  katilimcilar    TurnuvaKatilimci[]
+  maclar          TurnuvaMac[]
+
+  @@index([durum])
+  @@index([kayitBitis])
+  @@map("turnuvalar")
+}
+
+model TurnuvaKatilimci {
+  id          String    @id @default(uuid())
+  turnuvaId   String
+  oyuncuId    String
+
+  puan        Int       @default(0)
+  kazanilanMac Int      @default(0)
+  kayipMac    Int       @default(0)
+  sira        Int?      // Final sirasi
+
+  katildiAt   DateTime  @default(now())
+  elendiAt    DateTime?
+
+  turnuva     Turnuva   @relation(fields: [turnuvaId], references: [id], onDelete: Cascade)
+  oyuncu      Oyuncu    @relation(fields: [oyuncuId], references: [id], onDelete: Cascade)
+
+  @@unique([turnuvaId, oyuncuId])
+  @@index([turnuvaId])
+  @@index([oyuncuId])
+  @@map("turnuva_katilimcilari")
+}
+
+model TurnuvaMac {
+  id          String    @id @default(uuid())
+  turnuvaId   String
+  turNumarasi Int       // 1, 2, 3... (eleme turlari)
+  macNumarasi Int       // O turdaki mac sirasi
+
+  toplulukId  String?   // Oynanan oyunun toplulugu
+  durum       MacDurumu @default(BEKLIYOR)
+
+  // Mac sonucu
+  kazananId   String?   // Kazanan oyuncu
+
+  basladiAt   DateTime?
+  bittiAt     DateTime?
+
+  turnuva     Turnuva   @relation(fields: [turnuvaId], references: [id], onDelete: Cascade)
+
+  @@index([turnuvaId, turNumarasi])
+  @@map("turnuva_maclari")
+}
+
+enum TurnuvaDurumu {
+  KAYIT_ACIK
+  KAYIT_KAPALI
+  DEVAM_EDIYOR
+  TAMAMLANDI
+  IPTAL
+
+  @@map("turnuva_durumu")
+}
+
+enum MacDurumu {
+  BEKLIYOR
+  DEVAM_EDIYOR
+  TAMAMLANDI
+  IPTAL
+
+  @@map("mac_durumu")
+}
