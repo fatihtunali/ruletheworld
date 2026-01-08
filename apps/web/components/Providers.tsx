@@ -6,6 +6,7 @@ import { PWARegister } from './PWARegister';
 import { errorTracker } from '../lib/errorTracking';
 import { analytics, usePageTracking } from '../lib/analytics';
 import { useAuthStore } from '../lib/store';
+import { I18nProvider } from '../lib/i18n';
 
 interface ProvidersProps {
   children: ReactNode;
@@ -42,8 +43,10 @@ export function Providers({ children }: ProvidersProps) {
 
   return (
     <ErrorBoundary>
-      {children}
-      <PWARegister />
+      <I18nProvider>
+        {children}
+        <PWARegister />
+      </I18nProvider>
     </ErrorBoundary>
   );
 }

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useAuthStore } from '../lib/store';
+import { useI18n, LanguageSelector } from '../lib/i18n';
 import Bildirimler from './Bildirimler';
 import TemaAyarlari from './TemaAyarlari';
 
@@ -62,6 +63,7 @@ export default function Navbar() {
                   <span className="text-white font-medium">{oyuncu.kullaniciAdi}</span>
                 </Link>
                 <TemaAyarlari />
+                <LanguageSelector className="hidden sm:block" />
                 <Bildirimler />
                 {oyuncu.sistemRolu === 'ADMIN' && (
                   <Link
