@@ -505,6 +505,9 @@ enum ModeasyonTipi {
   TOPLULUK_DONDUR
   MESAJ_SIL
   ROL_DEGISTIR
+  DUYURU_OLUSTUR
+  DUYURU_GUNCELLE
+  DUYURU_SIL
 
   @@map("moderasyon_tipi")
 }
@@ -713,4 +716,34 @@ enum ArkadaslikDurumu {
   ENGELLENDI
 
   @@map("arkadaslik_durumu")
+}
+
+// ============ SISTEM DUYURULARI ============
+
+model SistemDuyurusu {
+  id          String          @id @default(uuid())
+  baslik      String
+  icerik      String
+  tip         DuyuruTipi      @default(BILGI)
+  aktif       Boolean         @default(true)
+
+  baslangic   DateTime        @default(now())
+  bitis       DateTime?       // null = süresiz
+
+  olusturanId String
+  olusturuldu DateTime        @default(now())
+  guncellendi DateTime        @updatedAt
+
+  @@index([aktif, baslangic, bitis])
+  @@map("sistem_duyurulari")
+}
+
+enum DuyuruTipi {
+  BILGI       // Genel bilgilendirme
+  UYARI       // Dikkat çeken uyarı
+  ONEMLI      // Önemli duyuru
+  BAKIM       // Bakım duyurusu
+  ETKINLIK    // Etkinlik/Event
+
+  @@map("duyuru_tipi")
 }

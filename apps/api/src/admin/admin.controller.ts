@@ -14,7 +14,7 @@ import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { AdminOnly, ModeratorOnly } from './decorators/roles.decorator';
-import { BanOyuncuDto, UnbanOyuncuDto, RolDegistirDto, KullaniciAraDto, ToplulukDondurDto } from './dto/admin.dto';
+import { BanOyuncuDto, UnbanOyuncuDto, RolDegistirDto, KullaniciAraDto, ToplulukDondurDto, DuyuruOlusturDto, DuyuruGuncelleDto } from './dto/admin.dto';
 import { SkipThrottle } from '@nestjs/throttler';
 
 @Controller('admin')
@@ -114,5 +114,44 @@ export class AdminController {
   @UseGuards(JwtAuthGuard) // RolesGuard yok çünkü henüz admin yok
   async ilkAdminOlustur(@Request() req: { user: { id: string } }) {
     return this.adminService.ilkAdminOlustur(req.user.id);
+  }
+
+  // ============ SİSTEM DUYURULARI ============
+
+  @Get('duyurular')
+  @ModeratorOnly()
+  async duyurulariGetir(
+    @Query('sayfa') sayfa?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.adminService.duyurulariGetir(sayfa, limit);
+  }
+
+  @Post('duyurular')
+  @AdminOnly()
+  async duyuruOlustur(
+    @Request() req: { user: { id: string } },
+    @Body() dto: DuyuruOlusturDto,
+  ) {
+    return this.adminService.duyuruOlustur(req.user.id, dto);
+  }
+
+  @Put('duyurular/:id')
+  @AdminOnly()
+  async duyuruGuncelle(
+    @Param('id') id: string,
+    @Request() req: { user: { id: string } },
+    @Body() dto: DuyuruGuncelleDto,
+  ) {
+    return this.adminService.duyuruGuncelle(id, req.user.id, dto);
+  }
+
+  @Delete('duyurular/:id')
+  @AdminOnly()
+  async duyuruSil(
+    @Param('id') id: string,
+    @Request() req: { user: { id: string } },
+  ) {
+    return this.adminService.duyuruSil(id, req.user.id);
   }
 }

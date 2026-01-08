@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { SistemRolu, HesapDurumu, BanTipi, ModeasyonTipi, ToplulukDurumu } from '@prisma/client';
-import { BanOyuncuDto, UnbanOyuncuDto, RolDegistirDto, KullaniciAraDto } from './dto/admin.dto';
+import { SistemRolu, HesapDurumu, BanTipi, ModeasyonTipi, ToplulukDurumu, DuyuruTipi } from '@prisma/client';
+import { BanOyuncuDto, UnbanOyuncuDto, RolDegistirDto, KullaniciAraDto, DuyuruOlusturDto, DuyuruGuncelleDto } from './dto/admin.dto';
 
 @Injectable()
 export class AdminService {
@@ -398,5 +398,146 @@ export class AdminService {
     });
 
     return { mesaj: 'İlk admin başarıyla oluşturuldu' };
+  }
+
+  // ============ SİSTEM DUYURULARI ============
+
+  async duyuruOlustur(yetkiliId: string, dto: DuyuruOlusturDto) {
+    const duyuru = await this.prisma.sistemDuyurusu.create({
+      data: {
+        baslik: dto.baslik,
+        icerik: dto.icerik,
+        tip: dto.tip || DuyuruTipi.BILGI,
+        baslangic: dto.baslangic ? new Date(dto.baslangic) : new Date(),
+        bitis: dto.bitis ? new Date(dto.bitis) : null,
+        olusturanId: yetkiliId,
+      },
+    });
+
+    // Moderasyon logu
+    await this.prisma.moderasyon.create({
+      data: {
+        yetkiliId,
+        aksiyon: ModeasyonTipi.DUYURU_OLUSTUR,
+        hedefTip: 'duyuru',
+        hedefId: duyuru.id,
+        detay: JSON.parse(JSON.stringify({ baslik: dto.baslik, tip: dto.tip })),
+      },
+    });
+
+    return duyuru;
+  }
+
+  async duyuruGuncelle(duyuruId: string, yetkiliId: string, dto: DuyuruGuncelleDto) {
+    const mevcutDuyuru = await this.prisma.sistemDuyurusu.findUnique({
+      where: { id: duyuruId },
+    });
+
+    if (!mevcutDuyuru) {
+      throw new NotFoundException('Duyuru bulunamadı');
+    }
+
+    const duyuru = await this.prisma.sistemDuyurusu.update({
+      where: { id: duyuruId },
+      data: {
+        baslik: dto.baslik,
+        icerik: dto.icerik,
+        tip: dto.tip,
+        aktif: dto.aktif,
+        baslangic: dto.baslangic ? new Date(dto.baslangic) : undefined,
+        bitis: dto.bitis ? new Date(dto.bitis) : undefined,
+      },
+    });
+
+    // Moderasyon logu
+    await this.prisma.moderasyon.create({
+      data: {
+        yetkiliId,
+        aksiyon: ModeasyonTipi.DUYURU_GUNCELLE,
+        hedefTip: 'duyuru',
+        hedefId: duyuruId,
+        detay: JSON.parse(JSON.stringify(dto)),
+      },
+    });
+
+    return duyuru;
+  }
+
+  async duyuruSil(duyuruId: string, yetkiliId: string) {
+    const duyuru = await this.prisma.sistemDuyurusu.findUnique({
+      where: { id: duyuruId },
+    });
+
+    if (!duyuru) {
+      throw new NotFoundException('Duyuru bulunamadı');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.sistemDuyurusu.delete({ where: { id: duyuruId } }),
+      this.prisma.moderasyon.create({
+        data: {
+          yetkiliId,
+          aksiyon: ModeasyonTipi.DUYURU_SIL,
+          hedefTip: 'duyuru',
+          hedefId: duyuruId,
+          detay: JSON.parse(JSON.stringify({ baslik: duyuru.baslik })),
+        },
+      }),
+    ]);
+
+    return { mesaj: 'Duyuru silindi' };
+  }
+
+  async duyurulariGetir(sayfa: number = 1, limit: number = 20) {
+    const skip = (sayfa - 1) * limit;
+
+    const [duyurular, toplam] = await Promise.all([
+      this.prisma.sistemDuyurusu.findMany({
+        orderBy: { olusturuldu: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.sistemDuyurusu.count(),
+    ]);
+
+    return {
+      duyurular,
+      sayfalama: {
+        toplam,
+        sayfa,
+        limit,
+        toplamSayfa: Math.ceil(toplam / limit),
+      },
+    };
+  }
+
+  // Herkese açık: Aktif duyuruları getir
+  async aktifDuyurulariGetir() {
+    const simdi = new Date();
+
+    const duyurular = await this.prisma.sistemDuyurusu.findMany({
+      where: {
+        aktif: true,
+        baslangic: { lte: simdi },
+        OR: [
+          { bitis: null },
+          { bitis: { gte: simdi } },
+        ],
+      },
+      orderBy: [
+        { tip: 'desc' }, // ONEMLI önce
+        { olusturuldu: 'desc' },
+      ],
+      select: {
+        id: true,
+        baslik: true,
+        icerik: true,
+        tip: true,
+        baslangic: true,
+        bitis: true,
+      },
+    });
+
+    return duyurular;
   }
 }
