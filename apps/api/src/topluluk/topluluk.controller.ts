@@ -44,4 +44,23 @@ export class ToplulukController {
   ) {
     return this.toplulukService.toplulukDetayGetir(id, req.user.id);
   }
+
+  // Manuel bot ekleme (kurucu tarafından)
+  @Post(':id/bot-ekle')
+  async botEkle(
+    @Request() req: { user: { id: string } },
+    @Param('id') id: string,
+    @Body() body: { adet?: number },
+  ) {
+    return this.toplulukService.manuelBotEkle(id, req.user.id, body.adet || 1);
+  }
+
+  // Tüm boş yerleri bot ile doldur
+  @Post(':id/botlarla-doldur')
+  async botlarlaDoldur(
+    @Request() req: { user: { id: string } },
+    @Param('id') id: string,
+  ) {
+    return this.toplulukService.manuelBotEkle(id, req.user.id, 8); // Maksimum 8 oyuncu
+  }
 }
