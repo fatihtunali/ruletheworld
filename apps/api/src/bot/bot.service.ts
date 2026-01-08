@@ -55,7 +55,7 @@ export class BotService {
   }
 
   // Bot oyuncu oluştur
-  async botOlustur(kisilik?: BotKisilik): Promise<{ id: string; kisilik: BotKisilik }> {
+  async botOlustur(kisilik?: BotKisilik): Promise<{ id: string; kullaniciAdi: string; kisilik: BotKisilik }> {
     const botKisilik = kisilik || this.rastgeleKisilik();
     const isim = this.rastgeleBotIsmi();
     const uniqueEmail = `bot_${Date.now()}_${Math.random().toString(36).substring(7)}@bot.ruletheworld.com`;
@@ -72,11 +72,11 @@ export class BotService {
       },
     });
 
-    return { id: bot.id, kisilik: botKisilik };
+    return { id: bot.id, kullaniciAdi: bot.kullaniciAdi, kisilik: botKisilik };
   }
 
   // Mevcut bot al veya yeni oluştur
-  async botGetirVeyaOlustur(kisilik?: BotKisilik): Promise<{ id: string; kisilik: BotKisilik }> {
+  async botGetirVeyaOlustur(kisilik?: BotKisilik): Promise<{ id: string; kullaniciAdi: string; kisilik: BotKisilik }> {
     // Kullanılmayan bir bot bul
     const mevcutBot = await this.prisma.oyuncu.findFirst({
       where: {
@@ -93,6 +93,7 @@ export class BotService {
     if (mevcutBot) {
       return {
         id: mevcutBot.id,
+        kullaniciAdi: mevcutBot.kullaniciAdi,
         kisilik: (mevcutBot.botKisilik as BotKisilik) || BotKisilik.DENGELI,
       };
     }
