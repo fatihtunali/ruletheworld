@@ -362,22 +362,23 @@ export default function NasilOynanirPage() {
               <div className="space-y-4">
                 {kaynaklar.map((kaynak, i) => {
                   const degerler = [75, 45, 60, 30];
+                  const deger = degerler[i] ?? 50;
                   return (
                     <div key={kaynak.isim} className="flex items-center gap-4">
                       <span className="text-2xl w-10">{kaynak.ikon}</span>
                       <div className="flex-1">
                         <div className="flex justify-between text-sm mb-1">
                           <span className="text-gray-400">{kaynak.isim}</span>
-                          <span className={degerler[i] < 30 ? 'text-red-400' : degerler[i] < 50 ? 'text-yellow-400' : 'text-green-400'}>
-                            {degerler[i]}
+                          <span className={deger < 30 ? 'text-red-400' : deger < 50 ? 'text-yellow-400' : 'text-green-400'}>
+                            {deger}
                           </span>
                         </div>
                         <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-all ${
-                              degerler[i] < 30 ? 'bg-red-500' : degerler[i] < 50 ? 'bg-yellow-500' : 'bg-green-500'
+                              deger < 30 ? 'bg-red-500' : deger < 50 ? 'bg-yellow-500' : 'bg-green-500'
                             }`}
-                            style={{ width: `${degerler[i]}%` }}
+                            style={{ width: `${deger}%` }}
                           />
                         </div>
                       </div>
