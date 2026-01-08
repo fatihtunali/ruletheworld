@@ -230,11 +230,13 @@ export class EslesmeService {
       // Diğer oyuncuları katıl
       for (let i = 1; i < oyuncuIdleri.length; i++) {
         try {
-          await this.toplulukService.toplulugaKatil(
-            oyuncuIdleri[i],
-            topluluk.kod,
-          );
-        } catch (e) {
+          if (topluluk.kod) {
+            await this.toplulukService.toplulugaKatil(
+              oyuncuIdleri[i],
+              topluluk.kod,
+            );
+          }
+        } catch (e: any) {
           this.logger.warn(`Oyuncu ${oyuncuIdleri[i]} katılamadı: ${e.message}`);
         }
       }
@@ -255,7 +257,7 @@ export class EslesmeService {
       this.logger.log(
         `${eslestirilenler.length} oyuncu eşleştirildi -> Topluluk: ${topluluk.id}`,
       );
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Eşleştirme hatası: ${error.message}`);
     }
   }
