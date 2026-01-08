@@ -109,6 +109,12 @@ export const api = {
 
   toplulukDetay: (id: string) => request<ToplulukDetay>(`/topluluklar/${id}`),
 
+  botlarlaDoldur: (toplulukId: string) =>
+    request<{ mesaj: string; eklenenBotlar: { id: string; kisilik: string }[]; yeniOyuncuSayisi: number }>(
+      `/topluluklar/${toplulukId}/botlarla-doldur`,
+      { method: 'POST' }
+    ),
+
   // Admin
   admin: {
     istatistikler: () => request<AdminIstatistikler>('/admin/istatistikler'),

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '../../../lib/store';
 import { useOyunStore, ToplulukDurumu } from '../../../lib/socket';
-import api from '../../../lib/api';
+import { api } from '../../../lib/api';
 
 // Constants from state machine
 const MIN_OYUNCU = 4;
@@ -61,7 +61,10 @@ export default function LobiEkrani() {
     if (!toplulukId || botYukleniyor) return;
     setBotYukleniyor(true);
     try {
-      await api.post(`/topluluklar/${toplulukId}/botlarla-doldur`);
+      const result = await api.botlarlaDoldur(toplulukId);
+      if (result.error) {
+        console.error('Bot ekleme hatası:', result.error);
+      }
       // Socket will receive the update automatically
     } catch (error) {
       console.error('Bot ekleme hatası:', error);
