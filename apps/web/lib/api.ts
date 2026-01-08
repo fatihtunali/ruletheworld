@@ -309,6 +309,38 @@ export const api = {
         `/reaksiyonlar/mesaj/${mesajId}/emoji/${encodeURIComponent(emoji)}/oyuncular`,
       ),
   },
+
+  // 2FA (İki Faktörlü Doğrulama)
+  ikiFA: {
+    durum: () => request<IkiFADurum>('/2fa/durum'),
+
+    kurulumBaslat: () =>
+      request<IkiFAKurulum>('/2fa/kurulum/baslat', { method: 'POST' }),
+
+    kurulumTamamla: (token: string) =>
+      request<{ yedekKodlar: string[] }>('/2fa/kurulum/tamamla', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      }),
+
+    dogrula: (token: string) =>
+      request<{ basarili: boolean; mesaj: string }>('/2fa/dogrula', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      }),
+
+    deaktif: (token: string) =>
+      request<{ basarili: boolean }>('/2fa/deaktif', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      }),
+
+    yedekKodlariYenile: (token: string) =>
+      request<{ yedekKodlar: string[] }>('/2fa/yedek-kodlar/yenile', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      }),
+  },
 };
 
 // Types
@@ -740,4 +772,16 @@ export interface ReaksiyonOzeti {
   emoji: string;
   sayi: number;
   benReaksiyonVerdimMi: boolean;
+}
+
+// 2FA Types
+export interface IkiFADurum {
+  aktif: boolean;
+  kalanYedekKod: number;
+}
+
+export interface IkiFAKurulum {
+  secret: string;
+  otpauthUrl: string;
+  qrCodeUrl: string;
 }

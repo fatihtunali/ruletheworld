@@ -21,6 +21,11 @@ model Oyuncu {
   // Email dogrulama
   emailDogrulandi   Boolean  @default(false)
 
+  // 2FA (İki Faktörlü Doğrulama)
+  ikiFactorAktif    Boolean  @default(false)
+  ikiFactorSecret   String?  // TOTP secret key
+  ikiFactorYedekKodlar String? // JSON array of backup codes
+
   // Rol ve durum
   sistemRolu    SistemRolu   @default(KULLANICI)
   hesapDurumu   HesapDurumu  @default(AKTIF)

@@ -24,6 +24,7 @@ import { GorevModule } from './gorev/gorev.module';
 import { AltinModule } from './altin/altin.module';
 import { SezonModule } from './sezon/sezon.module';
 import { ReaksiyonModule } from './reaksiyon/reaksiyon.module';
+import { IkiFactorModule } from './iki-faktor/iki-faktor.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -113,6 +114,9 @@ import configuration from './config/configuration';
 
     // Reaksiyon/Emoji Sistemi
     ReaksiyonModule,
+
+    // İki Faktörlü Doğrulama (2FA)
+    IkiFactorModule,
   ],
   controllers: [],
   providers: [
