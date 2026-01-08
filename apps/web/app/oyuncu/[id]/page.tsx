@@ -143,7 +143,7 @@ export default function OyuncuProfilSayfasi() {
           <div className="flex items-start gap-6">
             {/* Avatar */}
             <div className="w-24 h-24 bg-primary-500/30 rounded-2xl flex items-center justify-center text-4xl font-bold text-primary-400">
-              {oyuncu.kullaniciAdi[0].toUpperCase()}
+              {oyuncu.kullaniciAdi?.[0]?.toUpperCase() || '?'}
             </div>
 
             {/* Info */}
