@@ -23,6 +23,6 @@ import { BildirimModule } from '../bildirim/bildirim.module';
     }),
   ],
   providers: [OyunGateway, OyunService, OyunStateMachineService],
-  exports: [OyunService, OyunStateMachineService],
+  exports: [OyunService, OyunStateMachineService, OyunGateway],
 })
 export class OyunModule {}

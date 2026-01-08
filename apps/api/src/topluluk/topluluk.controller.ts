@@ -11,13 +11,17 @@ import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth, ApiBody } 
 import { ToplulukService } from './topluluk.service';
 import { ToplulukOlusturDto } from './dto/topluluk.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OyunGateway } from '../oyun/oyun.gateway';
 
 @ApiTags('Topluluk')
 @ApiBearerAuth('JWT-auth')
 @Controller('topluluklar')
 @UseGuards(JwtAuthGuard)
 export class ToplulukController {
-  constructor(private toplulukService: ToplulukService) {}
+  constructor(
+    private toplulukService: ToplulukService,
+    private oyunGateway: OyunGateway,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Tüm toplulukları getir', description: 'Açık olan tüm toplulukları listeler' })
@@ -75,7 +79,20 @@ export class ToplulukController {
     @Param('id') id: string,
     @Body() body: { adet?: number },
   ) {
-    return this.toplulukService.manuelBotEkle(id, req.user.id, body.adet || 1);
+    const sonuc = await this.toplulukService.manuelBotEkle(id, req.user.id, body.adet || 1);
+
+    // Socket ile bot ekleme bildirimi gönder
+    for (const bot of sonuc.eklenenBotlar) {
+      this.oyunGateway.server.to(id).emit('oyuncu-katildi', {
+        id: bot.id,
+        kullaniciAdi: bot.kullaniciAdi,
+        rol: 'OYUNCU',
+        hazir: true,
+        bagli: true,
+      });
+    }
+
+    return sonuc;
   }
 
   @Post(':id/botlarla-doldur')
@@ -87,6 +104,19 @@ export class ToplulukController {
     @Request() req: { user: { id: string } },
     @Param('id') id: string,
   ) {
-    return this.toplulukService.manuelBotEkle(id, req.user.id, 8);
+    const sonuc = await this.toplulukService.manuelBotEkle(id, req.user.id, 8);
+
+    // Socket ile bot ekleme bildirimi gönder
+    for (const bot of sonuc.eklenenBotlar) {
+      this.oyunGateway.server.to(id).emit('oyuncu-katildi', {
+        id: bot.id,
+        kullaniciAdi: bot.kullaniciAdi,
+        rol: 'OYUNCU',
+        hazir: true,
+        bagli: true,
+      });
+    }
+
+    return sonuc;
   }
 }

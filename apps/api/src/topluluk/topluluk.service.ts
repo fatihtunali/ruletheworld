@@ -533,7 +533,7 @@ export class ToplulukService {
     }
 
     const eklenecek = Math.min(adet, bosYer);
-    const eklenenBotlar: { id: string; kisilik: BotKisilik }[] = [];
+    const eklenenBotlar: { id: string; kullaniciAdi: string; kisilik: BotKisilik }[] = [];
 
     for (let i = 0; i < eklenecek; i++) {
       const bot = await this.botService.botGetirVeyaOlustur();
@@ -546,12 +546,13 @@ export class ToplulukService {
         },
       });
 
-      eklenenBotlar.push({ id: bot.id, kisilik: bot.kisilik });
+      eklenenBotlar.push({ id: bot.id, kullaniciAdi: bot.kullaniciAdi, kisilik: bot.kisilik });
     }
 
     return {
       mesaj: `${eklenecek} bot eklendi`,
       eklenenBotlar,
+      toplulukId: topluluk.id,
       yeniOyuncuSayisi: topluluk.uyeler.length + eklenecek,
     };
   }
