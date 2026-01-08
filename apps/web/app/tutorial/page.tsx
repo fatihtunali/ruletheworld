@@ -80,6 +80,8 @@ export default function TutorialPage() {
   const isLastStep = currentStep === tutorialSteps.length - 1;
   const isFirstStep = currentStep === 0;
 
+  if (!step) return null;
+
   const handleNext = () => {
     if (!completed.includes(currentStep)) {
       setCompleted([...completed, currentStep]);
