@@ -183,11 +183,12 @@ model Topluluk {
   bittiAt     DateTime?
 
   // İlişkiler
-  uyeler      ToplulukUyesi[]
-  oyunDurumu  OyunDurumu?
-  turlar      Tur[]
-  mesajlar    Mesaj[]
+  uyeler       ToplulukUyesi[]
+  oyunDurumu   OyunDurumu?
+  turlar       Tur[]
+  mesajlar     Mesaj[]
   oyunOlaylari OyunOlayi[]
+  izleyiciler  Izleyici[]
 
   @@index([durum])
   @@index([gizliMi, durum])
@@ -1227,6 +1228,8 @@ model Izleyici {
 
   katildiAt     DateTime        @default(now())
   ayrildiAt     DateTime?
+
+  topluluk      Topluluk        @relation(fields: [toplulukId], references: [id], onDelete: Cascade)
 
   @@unique([oyuncuId, toplulukId])
   @@index([toplulukId])

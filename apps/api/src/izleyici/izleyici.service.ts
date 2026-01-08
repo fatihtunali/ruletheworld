@@ -112,12 +112,8 @@ export class IzleyiciService {
           include: { oyuncu: { select: { kullaniciAdi: true } } },
         },
         oyunDurumu: true,
-        _count: {
-          select: {
-            izleyiciler: {
-              where: { ayrildiAt: null },
-            },
-          },
+        izleyiciler: {
+          where: { ayrildiAt: null },
         },
       },
       orderBy: { basladiAt: 'desc' },
@@ -130,7 +126,7 @@ export class IzleyiciService {
       mevcutTur: o.oyunDurumu?.mevcutTur || 1,
       toplamTur: o.toplamTurSayisi,
       oyuncuSayisi: o.uyeler.length,
-      izleyiciSayisi: (o._count as any).izleyiciler || 0,
+      izleyiciSayisi: o.izleyiciler.length,
       basladiAt: o.basladiAt,
     }));
   }
