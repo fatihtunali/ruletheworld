@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '../../../lib/store';
 import { useOyunStore, ToplulukDurumu } from '../../../lib/socket';
+import api from '../../../lib/api';
 
 // Constants from state machine
 const MIN_OYUNCU = 4;
@@ -14,6 +15,7 @@ export default function LobiEkrani() {
   const {
     toplulukIsmi,
     toplulukKodu,
+    toplulukId,
     durum,
     oyuncular,
     geriSayim,
@@ -24,6 +26,7 @@ export default function LobiEkrani() {
   } = useOyunStore();
   const [kopyalandi, setKopyalandi] = useState(false);
   const [localCountdown, setLocalCountdown] = useState<number | null>(null);
+  const [botYukleniyor, setBotYukleniyor] = useState(false);
 
   const benimDurumum = oyuncular.find((o) => o.id === oyuncu?.id);
   const benKurucuMuyum = benimDurumum?.rol === 'KURUCU';
@@ -52,6 +55,19 @@ export default function LobiEkrani() {
     navigator.clipboard.writeText(davetKodu);
     setKopyalandi(true);
     setTimeout(() => setKopyalandi(false), 2000);
+  };
+
+  const botlarlaDoldur = async () => {
+    if (!toplulukId || botYukleniyor) return;
+    setBotYukleniyor(true);
+    try {
+      await api.post(`/topluluklar/${toplulukId}/botlarla-doldur`);
+      // Socket will receive the update automatically
+    } catch (error) {
+      console.error('Bot ekleme hatası:', error);
+    } finally {
+      setBotYukleniyor(false);
+    }
   };
 
   return (
@@ -158,9 +174,30 @@ export default function LobiEkrani() {
 
           {/* Oyuncular Listesi */}
           <div className="bg-gray-800 rounded-2xl p-6 mb-6">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Oyuncular ({oyuncular.length}/{MIN_OYUNCU} minimum)
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">
+                Oyuncular ({oyuncular.length}/{MIN_OYUNCU} minimum)
+              </h3>
+              {benKurucuMuyum && oyuncular.length < MIN_OYUNCU && durum !== 'GERI_SAYIM' && durum !== 'BOT_DOLDURMA' && (
+                <button
+                  onClick={botlarlaDoldur}
+                  disabled={botYukleniyor}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  {botYukleniyor ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Ekleniyor...
+                    </>
+                  ) : (
+                    <>
+                      <span>🤖</span>
+                      Botlarla Doldur
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {oyuncular.map((o) => (
                 <OyuncuKarti key={o.id} oyuncu={o} />
