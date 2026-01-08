@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -12,7 +12,7 @@ interface OyuncuSonuc {
   kayitTarihi: string;
 }
 
-export default function AraSayfasi() {
+function AraIcerik() {
   const searchParams = useSearchParams();
   const [arama, setArama] = useState(searchParams.get('q') || '');
   const [sonuclar, setSonuclar] = useState<OyuncuSonuc[]>([]);
@@ -162,5 +162,17 @@ export default function AraSayfasi() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function AraSayfasi() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <AraIcerik />
+    </Suspense>
   );
 }
