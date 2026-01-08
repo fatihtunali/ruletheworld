@@ -404,10 +404,17 @@ model Mesaj {
 // ============ ENUM'LAR ============
 
 enum ToplulukDurumu {
-  LOBI
-  DEVAM_EDIYOR
-  TAMAMLANDI
-  TERK_EDILDI
+  // Lobi State Machine
+  BEKLEME         // WAITING - 4 oyuncu bekliyor
+  HAZIR           // READY - 4+ oyuncu var, host başlatabilir
+  GERI_SAYIM      // COUNTDOWN - 30sn geri sayım
+  BOT_DOLDURMA    // BOT_FILLING - Eksik oyuncular bot ile tamamlanıyor
+
+  // Eski enum'lar (backward compatibility)
+  LOBI            // Eski: Lobi durumunda (BEKLEME + HAZIR olarak kullanılıyordu)
+  DEVAM_EDIYOR    // IN_GAME - Oyun devam ediyor
+  TAMAMLANDI      // FINISHED - Oyun tamamlandı
+  TERK_EDILDI     // ABANDONED - Tüm oyuncular ayrıldı
 
   @@map("topluluk_durumu")
 }
@@ -440,23 +447,38 @@ enum UyeDurumu {
 }
 
 enum OyunAsamasi {
-  LOBI
-  TUR_BASI
-  OLAY_ACILISI
-  TARTISMA
-  OYLAMA
-  TUR_SONU
-  OYUN_SONU
-  SONUC
+  // Round State Machine (spec'e uygun)
+  OLAY_GOSTERILDI   // EVENT_REVEALED - Olay açıklandı (5sn okuma)
+  ONERI_ACIK        // PROPOSAL_OPEN - Öneri aşaması (60sn)
+  OYLAMA_ACIK       // VOTING_OPEN - Oylama aşaması (30sn)
+  HESAPLAMA         // RESOLVING - Tie-break ve kaynak hesaplama (~2sn)
+  SONUCLAR          // RESULTS_PUBLISHED - Sonuçlar gösterildi (5sn)
+  TUR_KAPANDI       // ROUND_CLOSED - Tur kapandı
+
+  // Eski enum'lar (backward compatibility)
+  LOBI              // Lobide
+  TUR_BASI          // Tur başlangıcı
+  OLAY_ACILISI      // Olay açılışı (eski)
+  TARTISMA          // Tartışma (eski)
+  OYLAMA            // Oylama (eski)
+  TUR_SONU          // Tur sonu (eski)
+  OYUN_SONU         // Oyun bitti
+  SONUC             // Sonuç ekranı
 
   @@map("oyun_asamasi")
 }
 
 enum OyunSonucu {
-  PARLADI
-  HAYATTA_KALDI
-  ZORLANDI
-  COKTU
+  // Spec'e uygun 5 sonuç (min ve ortalama bazlı)
+  PARLADI         // Tüm kaynaklar >= 70, çarpan: x1.5
+  GELISTI         // min >= 45 VE ortalama >= 60, çarpan: x1.25
+  DURAGAN         // min >= 25 VE ortalama 40-60, çarpan: x1.0
+  GERILEDI        // min < 25 VEYA ortalama < 40, çarpan: x0.75
+  COKTU           // Herhangi kaynak 0'a düştü (erken bitiş), çarpan: x0.5
+
+  // Eski enum'lar (backward compatibility)
+  HAYATTA_KALDI   // Eski (DURAGAN ile eşleşir)
+  ZORLANDI        // Eski (GERILEDI ile eşleşir)
 
   @@map("oyun_sonucu")
 }

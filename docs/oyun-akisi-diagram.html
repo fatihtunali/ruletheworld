@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RuleTheWorld - Oyun Akisi Diyagrami</title>
+    <!-- Mermaid version pinned for stability -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+        }
+        .version-badge {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .version-badge span {
+            background: rgba(0, 217, 255, 0.2);
+            border: 1px solid #00d9ff;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: #00d9ff;
+        }
+        .diagram-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 40px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .diagram-section.critical {
+            border: 2px solid #ff6b6b;
+            background: rgba(255, 107, 107, 0.05);
+        }
+        .diagram-section h2 {
+            color: #00d9ff;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .diagram-section h2.critical-header {
+            color: #ff6b6b;
+        }
+        .mermaid-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 20px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            min-height: 100px;
+        }
+        .mermaid-container.lazy {
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .mermaid-container.lazy::before {
+            content: 'Diagram yukleniyor...';
+            color: #666;
+        }
+        .mermaid-container.loaded::before {
+            display: none;
+        }
+        .legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 30px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+            flex-shrink: 0;
+        }
+        .phase-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .phase-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 20px;
+            border-left: 4px solid;
+        }
+        .phase-card h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .phase-card p {
+            color: #aaa;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        .phase-card ul {
+            margin-top: 10px;
+            padding-left: 20px;
+            color: #ccc;
+        }
+        .phase-card li {
+            margin: 5px 0;
+        }
+        .resources-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .resource-card {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+        }
+        .resource-card .icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        .resource-card .name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .resource-card .desc {
+            font-size: 0.8rem;
+            color: #888;
+        }
+        /* State Machine Styles */
+        .state-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .state-table th, .state-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .state-table th {
+            background: rgba(0, 217, 255, 0.2);
+            color: #00d9ff;
+            font-weight: 600;
+        }
+        .state-table tr:nth-child(even) {
+            background: rgba(255,255,255,0.03);
+        }
+        .state-table code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: #00ff88;
+        }
+        .rule-box {
+            background: rgba(255,255,255,0.05);
+            border-left: 4px solid;
+            padding: 15px 20px;
+            margin: 15px 0;
+            border-radius: 0 10px 10px 0;
+        }
+        .rule-box.warning {
+            border-color: #ffd93d;
+            background: rgba(255, 217, 61, 0.1);
+        }
+        .rule-box.info {
+            border-color: #00d9ff;
+        }
+        .rule-box.danger {
+            border-color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+        }
+        .rule-box.success {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+        .rule-box h4 {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .rule-box ul {
+            padding-left: 20px;
+            margin-top: 10px;
+        }
+        .rule-box li {
+            margin: 5px 0;
+            color: #ccc;
+        }
+        .timeout-badge {
+            display: inline-block;
+            background: rgba(255, 152, 0, 0.3);
+            border: 1px solid #ff9800;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            color: #ff9800;
+            margin-left: 10px;
+        }
+        .idempotency-note {
+            font-size: 0.85rem;
+            color: #888;
+            font-style: italic;
+            margin-top: 5px;
+        }
+        @media (max-width: 768px) {
+            .resources-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .state-table {
+                font-size: 0.85rem;
+            }
+            .state-table th, .state-table td {
+                padding: 8px 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>RuleTheWorld</h1>
+        <p class="subtitle">Topluluk Yonetim Oyunu - Teknik Dokumantasyon</p>
+        <div class="version-badge">
+            <span>v2.0 - Production Ready</span>
+        </div>
+
+        <!-- STATE MACHINE - EN KRITIK BOLUM -->
+        <div class="diagram-section critical">
+            <h2 class="critical-header">Oyun Durum Makinesi (State Machine)</h2>
+            <p style="color: #ccc; margin-bottom: 20px;">
+                Bu bolum oyunun tum durumlarini, gecis kosullarini ve edge case'leri tanimlar.
+                Backend ve frontend bu state'lere gore davranir.
+            </p>
+
+            <h3 style="color: #fff; margin: 25px 0 15px;">Lobi Durumlari</h3>
+            <div class="mermaid-container lazy" data-mermaid="lobby-states">
+                <pre class="mermaid">
+stateDiagram-v2
+    [*] --> WAITING: Lobi olusturuldu
+
+    WAITING --> WAITING: Oyuncu katildi
+    WAITING --> READY: minPlayers=4 doldu
+
+    READY --> READY: Oyuncu katildi/ayrildi (4+ kaldikca)
+    READY --> WAITING: Oyuncu sayisi 4 altina dustu
+    READY --> COUNTDOWN: Host "Baslat" tiklar veya autoStart
+
+    COUNTDOWN --> COUNTDOWN: 30sn geri sayim
+    COUNTDOWN --> BOT_FILLING: Countdown bitti, eksik oyuncu var
+    COUNTDOWN --> IN_GAME: Countdown bitti, yeterli oyuncu
+    COUNTDOWN --> READY: Host iptal etti
+
+    BOT_FILLING --> IN_GAME: Botlar eklendi
+
+    IN_GAME --> FINISHED: Oyun bitti
+
+    FINISHED --> [*]
+
+    note right of WAITING
+        Timeout: Yok (sinirsiz bekleme)
+        Max: 8 oyuncu
+    end note
+
+    note right of COUNTDOWN
+        Timeout: 30 saniye
+        Iptal edilebilir
+    end note
+
+    note right of BOT_FILLING
+        Deterministik: eksik = 4 - mevcut
+        Interval: 2sn arayla eklenir
+    end note
+                </pre>
+            </div>
+
+            <table class="state-table">
+                <thead>
+                    <tr>
+                        <th>State</th>
+                        <th>Giris Kosulu</th>
+                        <th>Timeout</th>
+                        <th>Allowed Actions</th>
+                        <th>Idempotency</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>WAITING</code></td>
+                        <td>Lobi olusturuldu</td>
+                        <td>Yok</td>
+                        <td>join, leave</td>
+                        <td>Join tekrar = ignore</td>
+                    </tr>
+                    <tr>
+                        <td><code>READY</code></td>
+                        <td>4+ oyuncu</td>
+                        <td>Yok</td>
+                        <td>join, leave, start</td>
+                        <td>Start tekrar = ignore</td>
+                    </tr>
+                    <tr>
+                        <td><code>COUNTDOWN</code></td>
+                        <td>Host baslatti / autoStart</td>
+                        <td>30 saniye</td>
+                        <td>cancel (sadece host)</td>
+                        <td>Cancel tekrar = ignore</td>
+                    </tr>
+                    <tr>
+                        <td><code>BOT_FILLING</code></td>
+                        <td>Countdown bitti, eksik var</td>
+                        <td>~10 saniye</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><code>IN_GAME</code></td>
+                        <td>Oyun basliyor</td>
+                        <td>Oyun suresi</td>
+                        <td>Oyun aksiyonlari</td>
+                        <td>Round state'e bagli</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="rule-box warning">
+                <h4>Bot Ekleme Kurali</h4>
+                <ul>
+                    <li><strong>Tetikleme:</strong> <code>COUNTDOWN</code> bitince, oyuncu sayisi &lt; 4 ise</li>
+                    <li><strong>Hesaplama:</strong> <code>eklenecek = max(0, 4 - mevcutOyuncu)</code></li>
+                    <li><strong>Interval:</strong> Her 2 saniyede 1 bot eklenir (animasyon icin)</li>
+                    <li><strong>Kisilikler:</strong> Rastgele secilir (TEMKINLI, CESUR, DIPLOMAT, KALKULATIF, POPULIST, VIZYONER, PRAGMATIK)</li>
+                </ul>
+            </div>
+
+            <h3 style="color: #fff; margin: 30px 0 15px;">Tur Durumlari (Round States)</h3>
+            <div class="mermaid-container lazy" data-mermaid="round-states">
+                <pre class="mermaid">
+stateDiagram-v2
+    [*] --> EVENT_REVEALED: Yeni tur basladi
+
+    EVENT_REVEALED --> PROPOSAL_OPEN: 5sn sonra (okuma suresi)
+
+    PROPOSAL_OPEN --> VOTING_OPEN: Timeout (60sn) veya tum oneriler geldi
+
+    VOTING_OPEN --> RESOLVING: Timeout (30sn) veya tum oylar geldi
+
+    RESOLVING --> RESULTS_PUBLISHED: Hesaplama tamamlandi
+
+    RESULTS_PUBLISHED --> ROUND_CLOSED: 5sn sonra
+
+    ROUND_CLOSED --> EVENT_REVEALED: Sonraki tur (tur < 10)
+    ROUND_CLOSED --> [*]: Oyun bitti (tur = 10 veya kaynak = 0)
+
+    note right of PROPOSAL_OPEN
+        Timeout: 60 saniye
+        Pas: Sistem onerisi eklenir
+    end note
+
+    note right of VOTING_OPEN
+        Timeout: 30 saniye
+        Pas: Abstain (cekimser)
+    end note
+
+    note right of RESOLVING
+        Tie-break uygulanir
+        Kaynaklar hesaplanir
+    end note
+                </pre>
+            </div>
+
+            <table class="state-table">
+                <thead>
+                    <tr>
+                        <th>State</th>
+                        <th>Sure</th>
+                        <th>Allowed Actions</th>
+                        <th>Timeout Davranisi</th>
+                        <th>Idempotency</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>EVENT_REVEALED</code></td>
+                        <td>5 sn</td>
+                        <td>-</td>
+                        <td>Otomatik gecis</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><code>PROPOSAL_OPEN</code></td>
+                        <td>60 sn</td>
+                        <td>submitProposal</td>
+                        <td>Oneri yapmayanlar icin sistem onerisi</td>
+                        <td>Tekrar oneri = guncelle (son gonderilen gecerli)</td>
+                    </tr>
+                    <tr>
+                        <td><code>VOTING_OPEN</code></td>
+                        <td>30 sn</td>
+                        <td>castVote</td>
+                        <td>Oy kullanmayanlar = Abstain</td>
+                        <td>Tekrar oy = guncelle (son oy gecerli)</td>
+                    </tr>
+                    <tr>
+                        <td><code>RESOLVING</code></td>
+                        <td>~2 sn</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><code>RESULTS_PUBLISHED</code></td>
+                        <td>5 sn</td>
+                        <td>-</td>
+                        <td>Otomatik gecis</td>
+                        <td>-</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- TIMEOUT ve EDGE CASE KURALLARI -->
+        <div class="diagram-section">
+            <h2>Timeout ve Edge Case Kurallari</h2>
+
+            <div class="rule-box info">
+                <h4>Oneri Timeout Davranisi <span class="timeout-badge">60 saniye</span></h4>
+                <p>Sure dolduğunda oneri yapmayan oyuncular icin:</p>
+                <ul>
+                    <li>Sistem otomatik "Pas" onerisi ekler</li>
+                    <li>Pas onerisi: <code>{ baslik: "Eylem yok", etki: { hazine: 0, refah: 0, istikrar: 0, altyapi: 0 } }</code></li>
+                    <li>Botlar her zaman sureleri icinde oneri yapar</li>
+                </ul>
+                <p class="idempotency-note">Idempotency: Ayni oyuncu tekrar oneri gonderirse, son oneri gecerli olur.</p>
+            </div>
+
+            <div class="rule-box info">
+                <h4>Oylama Timeout Davranisi <span class="timeout-badge">30 saniye</span></h4>
+                <p>Sure dolduğunda oy kullanmayan oyuncular icin:</p>
+                <ul>
+                    <li>Oy: <code>ABSTAIN</code> (cekimser) olarak kaydedilir</li>
+                    <li>Abstain oylar toplam oy sayisina dahil edilmez</li>
+                    <li>Eger tum oylar abstain ise: Rastgele bir oneri secilir</li>
+                    <li>Kendi onerisine oy verme: Engellenir (backend reject)</li>
+                </ul>
+                <p class="idempotency-note">Idempotency: Ayni oyuncu tekrar oy kullanirsa, son oy gecerli olur.</p>
+            </div>
+
+            <div class="rule-box warning">
+                <h4>Tie-Breaker Kurali (Esitlik Durumu)</h4>
+                <p>Iki veya daha fazla oneri esit oy alirsa:</p>
+                <ol style="padding-left: 20px; margin-top: 10px; color: #ccc;">
+                    <li><strong>Hazine maliyeti:</strong> Hazineye en az zarar veren kazanir</li>
+                    <li><strong>Istikrar etkisi:</strong> Hazine esitse, istikrari en cok artiran kazanir</li>
+                    <li><strong>Erken oneri:</strong> Hala esitse, daha erken gonderilen oneri kazanir</li>
+                </ol>
+                <p style="margin-top: 15px; color: #00ff88;">
+                    <strong>Formul:</strong> <code>score = -hazineEtki + (istikrarEtki * 0.5) - (timestamp * 0.001)</code>
+                </p>
+            </div>
+
+            <div class="rule-box danger">
+                <h4>Disconnect / Reconnect Davranisi</h4>
+                <ul>
+                    <li><strong>Lobi'de disconnect:</strong> 60 saniye bekle, geri gelmezse lobiden cikar</li>
+                    <li><strong>Oyun'da disconnect:</strong> Bot tarafindan devralinir (ayni state korunur)</li>
+                    <li><strong>Reconnect:</strong> Mevcut state'den devam eder, kacirilmis turlar "Pas/Abstain"</li>
+                    <li><strong>Tum oyuncular disconnect:</strong> Oyun 5 dakika askida kalir, sonra iptal</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- OYUN BITIS KOSULLARI -->
+        <div class="diagram-section">
+            <h2>Oyun Bitis Kosullari</h2>
+
+            <div class="mermaid-container lazy" data-mermaid="end-conditions">
+                <pre class="mermaid">
+flowchart TB
+    subgraph KONTROL["HER TUR SONUNDA"]
+        A{"Kaynak Kontrolu"}
+        B{"Tur Sayisi"}
+    end
+
+    A -->|"Herhangi kaynak = 0"| COKUS["COKUS<br/>Oyun HEMEN biter"]
+    A -->|"Tum kaynaklar > 0"| B
+
+    B -->|"Tur < 10"| DEVAM["Sonraki Tura Gec"]
+    B -->|"Tur = 10"| SONUC["Sonuc Hesapla"]
+
+    SONUC --> SINIF{"Siniflandirma"}
+
+    SINIF -->|"min >= 70"| PARLADI["PARLADI<br/>Tum kaynaklar 70+"]
+    SINIF -->|"min >= 45 && ort >= 60"| GELISTI["GELISTI<br/>Iyi yonetim"]
+    SINIF -->|"min >= 25 && ort >= 40"| DURAGAN["DURAGAN<br/>Idare eder"]
+    SINIF -->|"min < 25 || ort < 40"| GERILEDI["GERILEDI<br/>Kotu yonetim"]
+
+    style COKUS fill:#c0392b,color:#fff
+    style PARLADI fill:#f1c40f,color:#000
+    style GELISTI fill:#27ae60,color:#fff
+    style DURAGAN fill:#f39c12,color:#fff
+    style GERILEDI fill:#e74c3c,color:#fff
+                </pre>
+            </div>
+
+            <div class="rule-box success">
+                <h4>Sonuc Siniflandirma Formulu</h4>
+                <p>10 tur tamamlandiginda (veya erken bitiste):</p>
+                <table class="state-table" style="margin-top: 15px;">
+                    <thead>
+                        <tr>
+                            <th>Sonuc</th>
+                            <th>Kosul</th>
+                            <th>Puan Carpani</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="color: #c0392b;"><strong>COKUS</strong></td>
+                            <td>Herhangi bir kaynak 0'a dustu (erken bitis)</td>
+                            <td>x0.5</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #e74c3c;"><strong>GERILEDI</strong></td>
+                            <td>min &lt; 25 VEYA ortalama &lt; 40</td>
+                            <td>x0.75</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #f39c12;"><strong>DURAGAN</strong></td>
+                            <td>min &gt;= 25 VE ortalama 40-60 arasi</td>
+                            <td>x1.0</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #27ae60;"><strong>GELISTI</strong></td>
+                            <td>min &gt;= 45 VE ortalama &gt;= 60</td>
+                            <td>x1.25</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #f1c40f;"><strong>PARLADI</strong></td>
+                            <td>TUM kaynaklar &gt;= 70</td>
+                            <td>x1.5</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p style="margin-top: 15px; color: #888;">
+                    <strong>Not:</strong> 100'e ulasma oyunu bitirmez, bonus "Zafer Ani" animasyonu gosterilir ve devam eder.
+                </p>
+            </div>
+        </div>
+
+        <!-- Ana Oyun Akisi -->
+        <div class="diagram-section">
+            <h2>Ana Oyun Akisi</h2>
+            <div class="mermaid-container lazy" data-mermaid="main-flow">
+                <pre class="mermaid">
+flowchart TB
+    subgraph GIRIS["GIRIS"]
+        A[("Kayit Ol / Giris Yap")]
+        B["Ana Sayfa"]
+    end
+
+    subgraph LOBI["LOBI"]
+        C["Lobi Olustur"]
+        D["Lobiye Katil<br/>(Davet Kodu)"]
+        E["WAITING<br/>Oyuncu Bekleme"]
+        F["READY<br/>4+ Oyuncu"]
+        G["COUNTDOWN<br/>30sn Geri Sayim"]
+        H["BOT_FILLING<br/>Eksik tamamlaniyor"]
+    end
+
+    subgraph OYUN["OYUN DONGUSU"]
+        I["EVENT_REVEALED<br/>Olay Aciklandi"]
+        J["PROPOSAL_OPEN<br/>Oneri Asamasi (60sn)"]
+        K["VOTING_OPEN<br/>Oylama (30sn)"]
+        L["RESOLVING<br/>Hesaplama"]
+        M["RESULTS_PUBLISHED<br/>Sonuclar"]
+        N{"Tur 10 veya<br/>Kaynak 0?"}
+    end
+
+    subgraph BITIS["BITIS"]
+        O["Sonuc Hesaplama"]
+        P["Basarim Kontrolu"]
+        Q["Oduller Dagitilir"]
+        R["Istatistikler<br/>Guncellenir"]
+    end
+
+    A --> B
+    B --> C
+    B --> D
+    C --> E
+    D --> E
+    E -->|"4+ oyuncu"| F
+    F -->|"Host baslat"| G
+    G -->|"Eksik var"| H
+    G -->|"Yeterli"| I
+    H --> I
+    I --> J
+    J --> K
+    K --> L
+    L --> M
+    M --> N
+    N -->|"Hayir"| I
+    N -->|"Evet"| O
+    O --> P
+    P --> Q
+    Q --> R
+    R --> B
+
+    style A fill:#4CAF50,color:#fff
+    style G fill:#ff9800,color:#fff
+    style H fill:#ff9800,color:#fff
+    style I fill:#2196F3,color:#fff
+    style J fill:#9C27B0,color:#fff
+    style K fill:#E91E63,color:#fff
+    style O fill:#FFD700,color:#000
+                </pre>
+            </div>
+        </div>
+
+        <!-- Tur Detayi -->
+        <div class="diagram-section">
+            <h2>Tek Tur Detayi</h2>
+            <div class="mermaid-container lazy" data-mermaid="round-detail">
+                <pre class="mermaid">
+flowchart LR
+    subgraph TUR["TUR ASAMALARI"]
+        direction LR
+        A["OLAY<br/>--------<br/>Rastgele kriz<br/>veya firsat<br/><br/>5sn okuma"]
+        B["ONERI<br/>--------<br/>Oyuncular cozum<br/>onerir<br/><br/>60sn"]
+        C["OYLAMA<br/>--------<br/>Herkes bir<br/>oneriye oy verir<br/><br/>30sn"]
+        D["HESAPLAMA<br/>--------<br/>Tie-break<br/>Kaynak hesabi<br/><br/>~2sn"]
+        E["SONUC<br/>--------<br/>Kaynaklar<br/>guncellenir<br/><br/>5sn"]
+    end
+
+    A --> B --> C --> D --> E
+
+    style A fill:#FF6B6B,color:#fff
+    style B fill:#4ECDC4,color:#fff
+    style C fill:#45B7D1,color:#fff
+    style D fill:#96CEB4,color:#fff
+    style E fill:#FFEAA7,color:#000
+                </pre>
+            </div>
+        </div>
+
+        <!-- Kaynaklar -->
+        <div class="diagram-section">
+            <h2>Yonetilen Kaynaklar</h2>
+            <div class="resources-grid">
+                <div class="resource-card">
+                    <div class="icon">💰</div>
+                    <div class="name">Hazine</div>
+                    <div class="desc">Ekonomik guc ve butce</div>
+                </div>
+                <div class="resource-card">
+                    <div class="icon">😊</div>
+                    <div class="name">Refah</div>
+                    <div class="desc">Halkin mutlulugu</div>
+                </div>
+                <div class="resource-card">
+                    <div class="icon">⚖️</div>
+                    <div class="name">Istikrar</div>
+                    <div class="desc">Toplumsal duzen</div>
+                </div>
+                <div class="resource-card">
+                    <div class="icon">🏗️</div>
+                    <div class="name">Altyapi</div>
+                    <div class="desc">Gelismislik seviyesi</div>
+                </div>
+            </div>
+            <div class="mermaid-container lazy" style="margin-top: 20px;" data-mermaid="resources">
+                <pre class="mermaid">
+flowchart LR
+    subgraph KAYNAKLAR["KAYNAK DENGESI"]
+        A["Baslangic<br/>Her kaynak: 50"]
+        B{"Karar<br/>Sonucu"}
+        C["+5 ile +20"]
+        D["-5 ile -20"]
+        E{"min(kaynaklar)"}
+        F["Devam<br/>1-99 arasi"]
+        G["COKUS<br/>0'a dustu"]
+        H["Zafer Ani<br/>100 bonus"]
+    end
+
+    A --> B
+    B --> C
+    B --> D
+    C --> E
+    D --> E
+    E -->|">0"| F
+    E -->|"=0"| G
+    E -->|"=100"| H
+    H --> F
+
+    style A fill:#3498db,color:#fff
+    style C fill:#27ae60,color:#fff
+    style D fill:#e74c3c,color:#fff
+    style G fill:#c0392b,color:#fff
+    style H fill:#f1c40f,color:#000
+                </pre>
+            </div>
+        </div>
+
+        <!-- Sistem Mimarisi -->
+        <div class="diagram-section">
+            <h2>Sistem Mimarisi</h2>
+            <p style="color: #888; margin-bottom: 20px;">
+                NestJS Monolith icindeki moduler yapi. Tum servisler tek bir process'te calisir.
+            </p>
+            <div class="mermaid-container lazy" data-mermaid="architecture">
+                <pre class="mermaid">
+flowchart TB
+    subgraph CLIENT["FRONTEND"]
+        A["Next.js Web App"]
+        B["React Native Mobile"]
+    end
+
+    subgraph BACKEND["BACKEND - NestJS Monolith"]
+        subgraph MODULES["Moduller"]
+            C["Auth Module"]
+            D["Game Module"]
+            E["Topluluk Module"]
+            F["Bot Module"]
+            G["Basarim Module"]
+            H["Bildirim Module"]
+            I["Iki-Faktor Module"]
+            J["Sezon Module"]
+            K["Gorev Module"]
+            L["Altin Module"]
+        end
+
+        M["Socket.io Gateway"]
+        N["Prisma ORM"]
+    end
+
+    subgraph DATA["VERI KATMANI"]
+        O[("PostgreSQL")]
+        P["Redis<br/>(Opsiyonel Cache)"]
+    end
+
+    A --> C
+    B --> C
+    A --> M
+    B --> M
+
+    C --> N
+    D --> N
+    E --> N
+    F --> N
+    G --> N
+    H --> N
+    I --> N
+    J --> N
+    K --> N
+    L --> N
+
+    M --> D
+    M --> E
+
+    N --> O
+    D -.-> P
+
+    style A fill:#0070f3,color:#fff
+    style B fill:#61DAFB,color:#000
+    style O fill:#336791,color:#fff
+    style P fill:#DC382D,color:#fff
+    style M fill:#25c2a0,color:#fff
+                </pre>
+            </div>
+
+            <div class="rule-box info" style="margin-top: 20px;">
+                <h4>Modul Sorumlulukları</h4>
+                <ul>
+                    <li><strong>Auth Module:</strong> Kayit, giris, token yonetimi, sifre sifirlama</li>
+                    <li><strong>Game Module:</strong> Tur yonetimi, kaynak hesaplama, olay secimi</li>
+                    <li><strong>Topluluk Module:</strong> Lobi olusturma, katilim, state yonetimi</li>
+                    <li><strong>Bot Module:</strong> Bot kisilikleri, otomatik karar algoritmalari</li>
+                    <li><strong>Basarim Module:</strong> Basarim tanimlari, ilerleme takibi, rozet dagitimi</li>
+                    <li><strong>Bildirim Module:</strong> Push notification, in-app bildirimler</li>
+                    <li><strong>Iki-Faktor Module:</strong> TOTP kurulumu, dogrulama, yedek kodlar</li>
+                    <li><strong>Sezon Module:</strong> Sezon ilerleme, tier hesaplama, oduller</li>
+                    <li><strong>Gorev Module:</strong> Gunluk/haftalik gorevler, ilerleme</li>
+                    <li><strong>Altin Module:</strong> Sanal para, islem gecmisi, odeme</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Oyun Asamalari Detay -->
+        <div class="diagram-section">
+            <h2>Oyun Asamalari Detayi</h2>
+            <div class="phase-grid">
+                <div class="phase-card" style="border-color: #4CAF50;">
+                    <h3><span style="font-size: 1.5rem;">1</span> Lobi Olusturma</h3>
+                    <p>Oyuncu bir lobi olusturur veya mevcut bir lobiye katilir.</p>
+                    <ul>
+                        <li>Davet kodu ile paylasim</li>
+                        <li>4-8 oyuncu kapasitesi</li>
+                        <li>Host "Baslat" ile countdown baslar</li>
+                        <li>30sn countdown sonrasi bot tamamlama</li>
+                    </ul>
+                </div>
+                <div class="phase-card" style="border-color: #2196F3;">
+                    <h3><span style="font-size: 1.5rem;">2</span> Olay Aciklamasi</h3>
+                    <p>Her turda rastgele bir olay belirir.</p>
+                    <ul>
+                        <li>Ekonomik krizler</li>
+                        <li>Dogal afetler</li>
+                        <li>Firsatlar</li>
+                        <li>Sosyal sorunlar</li>
+                        <li>5 saniye okuma suresi</li>
+                    </ul>
+                </div>
+                <div class="phase-card" style="border-color: #9C27B0;">
+                    <h3><span style="font-size: 1.5rem;">3</span> Oneri Yapma</h3>
+                    <p>Oyuncular cozum onerileri sunar.</p>
+                    <ul>
+                        <li>60 saniye sure</li>
+                        <li>Kaynak etkileri belirtilir</li>
+                        <li>Her oyuncu 1 oneri</li>
+                        <li>Timeout: Sistem "Pas" ekler</li>
+                    </ul>
+                </div>
+                <div class="phase-card" style="border-color: #E91E63;">
+                    <h3><span style="font-size: 1.5rem;">4</span> Oylama</h3>
+                    <p>Tum oyuncular en iyi oneriyi secer.</p>
+                    <ul>
+                        <li>30 saniye sure</li>
+                        <li>Kendi onerisine oy verilemez</li>
+                        <li>Timeout: Abstain (cekimser)</li>
+                        <li>Esitlik: Tie-breaker uygulanir</li>
+                    </ul>
+                </div>
+                <div class="phase-card" style="border-color: #FF9800;">
+                    <h3><span style="font-size: 1.5rem;">5</span> Uygulama</h3>
+                    <p>Kazanan oneri uygulanir.</p>
+                    <ul>
+                        <li>Kaynaklar guncellenir</li>
+                        <li>0 kontrolu yapilir</li>
+                        <li>100 ise "Zafer Ani"</li>
+                        <li>Animasyonlu gosterim</li>
+                    </ul>
+                </div>
+                <div class="phase-card" style="border-color: #FFD700;">
+                    <h3><span style="font-size: 1.5rem;">6</span> Sonuc</h3>
+                    <p>10 tur sonunda veya erken bitiste.</p>
+                    <ul>
+                        <li>min() ve ortalama hesaplanir</li>
+                        <li>Siniflandirma yapilir</li>
+                        <li>Basarimlar kontrol edilir</li>
+                        <li>Oduller dagitilir</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Renk Kodlari -->
+        <div class="diagram-section">
+            <h2>Renk Kodlari</h2>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #4CAF50;"></div>
+                    <span>Baslangic / Giris</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #2196F3;"></div>
+                    <span>Aksiyon / Islem</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #FF9800;"></div>
+                    <span>Bekleme / Countdown</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #9C27B0;"></div>
+                    <span>Oneri Asamasi</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #E91E63;"></div>
+                    <span>Oylama Asamasi</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #FFD700;"></div>
+                    <span>Sonuc / Odul</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #c0392b;"></div>
+                    <span>Hata / Cokus</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #00d9ff;"></div>
+                    <span>Bilgi / State</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Mermaid configuration with pinned version settings
+        mermaid.initialize({
+            startOnLoad: false, // Manual init for lazy loading
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#4a5568',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#718096',
+                lineColor: '#718096',
+                secondaryColor: '#2d3748',
+                tertiaryColor: '#1a202c',
+                background: '#1a202c',
+                mainBkg: '#2d3748',
+                nodeBorder: '#4a5568',
+                clusterBkg: 'rgba(255,255,255,0.1)',
+                clusterBorder: 'rgba(255,255,255,0.2)',
+                titleColor: '#fff',
+                edgeLabelBackground: '#2d3748'
+            },
+            flowchart: {
+                curve: 'basis',
+                padding: 20
+            },
+            stateDiagram: {
+                useMaxWidth: true
+            }
+        });
+
+        // Lazy loading with Intersection Observer
+        const observerOptions = {
+            root: null,
+            rootMargin: '100px',
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(async (entry) => {
+                if (entry.isIntersecting) {
+                    const container = entry.target;
+                    if (!container.classList.contains('loaded')) {
+                        container.classList.add('loaded');
+                        const mermaidCode = container.querySelector('.mermaid');
+                        if (mermaidCode) {
+                            try {
+                                const id = container.dataset.mermaid || 'mermaid-' + Math.random().toString(36).substr(2, 9);
+                                const { svg } = await mermaid.render(id, mermaidCode.textContent);
+                                container.innerHTML = svg;
+                            } catch (e) {
+                                console.error('Mermaid render error:', e);
+                                container.innerHTML = '<p style="color: #ff6b6b;">Diagram render hatasi</p>';
+                            }
+                        }
+                    }
+                    observer.unobserve(container);
+                }
+            });
+        }, observerOptions);
+
+        // Start observing all lazy containers
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.mermaid-container.lazy').forEach(container => {
+                observer.observe(container);
+            });
+        });
+    </script>
+</body>
+</html>
