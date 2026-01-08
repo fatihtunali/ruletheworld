@@ -61,7 +61,7 @@ export default function AnaSayfa() {
                   Hemen Başla
                 </Link>
                 <Link
-                  href="#nasil-oynanir"
+                  href="/nasil-oynanir"
                   className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white text-lg font-medium rounded-xl backdrop-blur-sm transition-all duration-200 text-center border border-white/20"
                 >
                   Nasıl Oynanır?

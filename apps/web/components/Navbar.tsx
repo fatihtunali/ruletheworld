@@ -21,6 +21,7 @@ export default function Navbar() {
 
   const navLinks = [
     { href: '/lobi', label: 'Lobi', icon: '🏠' },
+    { href: '/nasil-oynanir', label: 'Nasıl Oynanır', icon: '❓' },
     { href: '/gorevler', label: 'Görevler', icon: '📋' },
     { href: '/basarimlar', label: 'Başarımlar', icon: '🏅' },
     { href: '/sezon', label: 'Sezon', icon: '🏆' },
