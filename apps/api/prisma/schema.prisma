@@ -164,6 +164,12 @@ model Topluluk {
   davetKodu   String?         @unique
   kurucuId    String
 
+  // Oyun modu ayarları
+  oyunModu        OyunModu    @default(NORMAL)
+  turSuresi       Int         @default(120)    // saniye cinsinden (varsayılan 2 dk)
+  toplamTurSayisi Int         @default(6)
+  botDoldur       Boolean     @default(false)  // Eksik oyuncuları bot ile doldur
+
   olusturuldu DateTime        @default(now())
   guncellendi DateTime        @updatedAt
   basladiAt   DateTime?
@@ -396,6 +402,17 @@ enum ToplulukDurumu {
   TERK_EDILDI
 
   @@map("topluluk_durumu")
+}
+
+enum OyunModu {
+  NORMAL        // Standart oyun (6 tur, 2 dk)
+  HIZLI         // Hızlı oyun (4 tur, 1 dk)
+  UZUN          // Uzun oyun (10 tur, 3 dk)
+  MARATON       // Maraton (15 tur, 5 dk)
+  EGITIM        // Eğitim modu (3 tur, sınırsız süre)
+  OZEL          // Özel ayarlar
+
+  @@map("oyun_modu")
 }
 
 enum UyeRolu {
