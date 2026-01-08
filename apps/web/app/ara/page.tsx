@@ -117,7 +117,7 @@ export default function AraSayfasi() {
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-primary-500/20 rounded-xl flex items-center justify-center">
                     <span className="text-xl font-bold text-primary-400">
-                      {oyuncu.kullaniciAdi[0].toUpperCase()}
+                      {oyuncu.kullaniciAdi?.[0]?.toUpperCase() || '?'}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
