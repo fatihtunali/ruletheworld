@@ -4,9 +4,10 @@ import { AdminService } from './admin.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { RolesGuard } from './guards/roles.guard';
 import { BanGuard } from './guards/ban.guard';
+import { PremiumModule } from '../premium/premium.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, PremiumModule],
   controllers: [AdminController],
   providers: [AdminService, RolesGuard, BanGuard],
   exports: [AdminService, RolesGuard, BanGuard],

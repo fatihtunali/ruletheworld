@@ -1,5 +1,5 @@
-import { IsString, IsOptional, IsEnum, IsDateString, IsUUID, MinLength, MaxLength, IsBoolean } from 'class-validator';
-import { SistemRolu, BanTipi, DuyuruTipi } from '@prisma/client';
+import { IsString, IsOptional, IsEnum, IsDateString, IsUUID, MinLength, MaxLength, IsBoolean, IsNumber, Min } from 'class-validator';
+import { SistemRolu, BanTipi, DuyuruTipi, PremiumTip } from '@prisma/client';
 
 export class BanOyuncuDto {
   @IsString()
@@ -116,4 +116,41 @@ export class DuyuruGuncelleDto {
   @IsDateString()
   @IsOptional()
   bitis?: string;
+}
+
+// ============ PREMİUM DTOları ============
+
+export class PromosyonOlusturDto {
+  @IsString()
+  @MinLength(3)
+  @MaxLength(20)
+  kod: string;
+
+  @IsEnum(PremiumTip)
+  premiumTip: PremiumTip;
+
+  @IsNumber()
+  @Min(1)
+  sureSaat: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(1)
+  maxKullanim?: number;
+
+  @IsDateString()
+  @IsOptional()
+  gecerliBitis?: string;
+}
+
+export class PremiumVerDto {
+  @IsString()
+  oyuncuId: string;
+
+  @IsEnum(PremiumTip)
+  premiumTip: PremiumTip;
+
+  @IsNumber()
+  @Min(1)
+  sureSaat: number;
 }

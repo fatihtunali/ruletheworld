@@ -14,13 +14,17 @@ import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { AdminOnly, ModeratorOnly } from './decorators/roles.decorator';
-import { BanOyuncuDto, UnbanOyuncuDto, RolDegistirDto, KullaniciAraDto, ToplulukDondurDto, DuyuruOlusturDto, DuyuruGuncelleDto } from './dto/admin.dto';
+import { BanOyuncuDto, UnbanOyuncuDto, RolDegistirDto, KullaniciAraDto, ToplulukDondurDto, DuyuruOlusturDto, DuyuruGuncelleDto, PromosyonOlusturDto, PremiumVerDto } from './dto/admin.dto';
+import { PremiumService } from '../premium/premium.service';
 import { SkipThrottle } from '@nestjs/throttler';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AdminController {
-  constructor(private adminService: AdminService) {}
+  constructor(
+    private adminService: AdminService,
+    private premiumService: PremiumService,
+  ) {}
 
   // ============ İSTATİSTİKLER ============
 
@@ -153,5 +157,36 @@ export class AdminController {
     @Request() req: { user: { id: string } },
   ) {
     return this.adminService.duyuruSil(id, req.user.id);
+  }
+
+  // ============ PREMİUM YÖNETİMİ ============
+
+  @Post('premium/promosyon')
+  @AdminOnly()
+  async promosyonOlustur(
+    @Request() req: { user: { id: string } },
+    @Body() dto: PromosyonOlusturDto,
+  ) {
+    return this.premiumService.promosyonKoduOlustur(req.user.id, {
+      kod: dto.kod,
+      premiumTip: dto.premiumTip,
+      sureSaat: dto.sureSaat,
+      maxKullanim: dto.maxKullanim,
+      gecerliBitis: dto.gecerliBitis ? new Date(dto.gecerliBitis) : undefined,
+    });
+  }
+
+  @Post('premium/ver')
+  @AdminOnly()
+  async premiumVer(
+    @Request() req: { user: { id: string } },
+    @Body() dto: PremiumVerDto,
+  ) {
+    return this.premiumService.premiumVer(
+      dto.oyuncuId,
+      dto.premiumTip,
+      dto.sureSaat,
+      req.user.id,
+    );
   }
 }

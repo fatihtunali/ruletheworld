@@ -63,6 +63,7 @@ model Oyuncu {
   emailDogrulamalari    EmailDogrulama[]
   gonderilenArkadasliklar Arkadaslik[]   @relation("GonderenOyuncu")
   alinanArkadasliklar     Arkadaslik[]   @relation("AlanOyuncu")
+  premiumUyelikler        PremiumUyelik[]
 
   @@index([sistemRolu])
   @@index([hesapDurumu])
@@ -747,3 +748,115 @@ enum DuyuruTipi {
 
   @@map("duyuru_tipi")
 }
+
+// ============ PREMİUM SİSTEMİ ============
+
+model PremiumUyelik {
+  id            String          @id @default(uuid())
+  oyuncuId      String
+
+  // Üyelik tipi
+  tip           PremiumTip
+
+  // Süre
+  baslangic     DateTime        @default(now())
+  bitis         DateTime
+
+  // Ödeme bilgileri
+  odemeTutari   Float
+  odemeTarihi   DateTime        @default(now())
+  odemeYontemi  String?         // "kredi_karti", "paypal", "crypto"
+  odemeRefId    String?         // Ödeme referans ID
+
+  // Durum
+  aktif         Boolean         @default(true)
+  iptalEdildi   Boolean         @default(false)
+  iptalTarihi   DateTime?
+
+  olusturuldu   DateTime        @default(now())
+  guncellendi   DateTime        @updatedAt
+
+  oyuncu        Oyuncu          @relation(fields: [oyuncuId], references: [id])
+
+  @@index([oyuncuId])
+  @@index([aktif, bitis])
+  @@map("premium_uyelikler")
+}
+
+// Premium hediye/promosyon kodları
+model PromosyonKodu {
+  id            String          @id @default(uuid())
+  kod           String          @unique
+
+  // Ne veriyor
+  premiumTip    PremiumTip
+  sureSaat      Int             // Kaç saatlik premium veriyor
+
+  // Kullanım
+  maxKullanim   Int             @default(1)
+  kullanilanSayi Int            @default(0)
+
+  // Geçerlilik
+  gecerliBaslangic DateTime     @default(now())
+  gecerliBitis     DateTime?
+  aktif         Boolean         @default(true)
+
+  olusturuldu   DateTime        @default(now())
+  olusturanId   String?
+
+  kullanimlar   PromosyonKullanimi[]
+
+  @@map("promosyon_kodlari")
+}
+
+model PromosyonKullanimi {
+  id            String          @id @default(uuid())
+  promosyonKodId String
+  oyuncuId      String
+  kullanimTarihi DateTime       @default(now())
+
+  promosyonKodu PromosyonKodu   @relation(fields: [promosyonKodId], references: [id])
+
+  @@unique([promosyonKodId, oyuncuId]) // Aynı kişi aynı kodu 1 kez kullanabilir
+  @@map("promosyon_kullanimlari")
+}
+
+// Premium tipleri
+enum PremiumTip {
+  VIP       // 1 aylık temel premium
+  GOLD      // 3 aylık premium + ekstra özellikler
+  DIAMOND   // 1 yıllık premium + tüm özellikler
+  LIFETIME  // Ömür boyu premium
+
+  @@map("premium_tip")
+}
+
+// Premium avantajları (statik, kod tarafında tanımlı)
+// VIP:
+//   - 1.2x puan çarpanı
+//   - Özel VIP rozeti
+//   - Öncelikli eşleştirme
+//   - Reklamsız deneyim
+//
+// GOLD:
+//   - 1.5x puan çarpanı
+//   - Özel GOLD rozeti
+//   - Öncelikli eşleştirme
+//   - Reklamsız deneyim
+//   - Özel oyun modları
+//   - Detaylı istatistikler
+//
+// DIAMOND:
+//   - 2x puan çarpanı
+//   - Özel DIAMOND rozeti
+//   - Öncelikli eşleştirme (en yüksek)
+//   - Reklamsız deneyim
+//   - Tüm özel oyun modları
+//   - Tüm detaylı istatistikler
+//   - Özel avatar çerçeveleri
+//   - Beta özelliklere erişim
+//
+// LIFETIME:
+//   - DIAMOND ile aynı avantajlar
+//   - Özel "Destekçi" rozeti
+//   - Founder badge

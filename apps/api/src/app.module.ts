@@ -19,6 +19,7 @@ import { SiralamaModule } from './siralama/siralama.module';
 import { BotModule } from './bot/bot.module';
 import { OyunModuModule } from './oyun-modu/oyun-modu.module';
 import { DuyuruModule } from './duyuru/duyuru.module';
+import { PremiumModule } from './premium/premium.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -93,6 +94,9 @@ import configuration from './config/configuration';
 
     // Sistem Duyuruları
     DuyuruModule,
+
+    // Premium Üyelik
+    PremiumModule,
   ],
   controllers: [],
   providers: [
