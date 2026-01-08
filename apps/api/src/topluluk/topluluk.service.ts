@@ -7,8 +7,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ToplulukOlusturDto } from './dto/topluluk.dto';
-import { ToplulukDurumu, UyeRolu, BotKisilik } from '@prisma/client';
-import { BotService } from '../bot/bot.service';
+import { ToplulukDurumu, UyeRolu } from '@prisma/client';
+import { BotService, BotKisilik } from '../bot/bot.service';
 
 // Otomatik bot ekleme için bekleme süreleri (ms)
 const BOT_BEKLEME_SURESI = 30000; // 30 saniye
